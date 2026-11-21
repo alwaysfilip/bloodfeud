@@ -75,8 +75,13 @@ function Nameplates:Init()
 			ns.Detect.ScanNameplates()
 		end)
 	end
+	-- Only the records that decide who is marked or alerted for: reports,
+	-- guild reports, facts (a first-name entry being pinned) and bounties.
+	-- Scores, totals, claims and sightings change all the time and must not
+	-- make the alerts replay for whoever is standing in front of us.
+	local RESCAN = { r = true, g = true, f = true, b = true }
 	ns:Listen("LIST_CHANGED", function(id)
-		if type(id) == "string" and id:sub(1, 5) ~= "seen:" then rescan() end
+		if type(id) == "string" and id:sub(2, 2) == ":" and RESCAN[id:sub(1, 1)] then rescan() end
 	end)
 	ns:Listen("SESSION_CHANGED", rescan)
 end

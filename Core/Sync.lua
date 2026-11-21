@@ -418,8 +418,7 @@ function Sync:Apply(rec, sender, now)
 	local senderKey = Fold(sender)
 	local direct = Fold(rec.mby) == senderKey
 	if direct and rec.k ~= "f" then
-		local needsRank = rec.k == "g" or (rec.k == "r" and rec.akey ~= senderKey)
-		if needsRank and not env.roster.Ready() then
+		if Permissions.NeedsRoster(rec, senderKey) and not env.roster.Ready() then
 			self.deferred[#self.deferred + 1] = { rec = rec, sender = sender, at = now }
 			return "deferred"
 		end

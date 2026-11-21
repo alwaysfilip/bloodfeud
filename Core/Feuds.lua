@@ -226,6 +226,7 @@ function Feuds:OnKill(attackerGUID, targetGUID)
 	stats.killsKnown = stats.killsKnown + 1
 	local key, e, listed = self:Count(info, "k", GetServerTime())
 	if not key then return end
+	if ns.Progress then ns.Progress:OnKill(info, key, listed, e) end
 	if listed and ns.settings.chat then
 		ns:Print(L.MSG_KILL:format(Names.Display(info.name), scoreText(key) or ""))
 	end
@@ -259,6 +260,7 @@ end
 function Feuds:OnDeath()
 	if Feuds.Paused() then return end
 	self.stats.deaths = self.stats.deaths + 1
+	if ns.Progress then ns.Progress:EndStreak() end -- whoever did it
 	local info, stamp = self:Killer()
 	if not info then
 		ns:Debug("death: killer not identified (%s)", tostring(stamp))
@@ -273,6 +275,7 @@ function Feuds:OnDeath()
 	local now = GetServerTime()
 	local key, e, listed = self:Count(info, "d", now)
 	if not key then return end
+	if ns.Progress then ns.Progress:OnDeath() end
 	if listed and ns.settings.chat then
 		ns:Print(L.MSG_KILLED_BY:format(Names.Display(info.name), scoreText(key) or ""))
 	end

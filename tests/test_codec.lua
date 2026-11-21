@@ -130,8 +130,8 @@ T.test("hello: fixed length, round trip, version gate", function()
 	T.eq(h.root, (Codec.Root(digests)))
 	for b = 0, 63 do T.eq(h.digests[b], digests[b]) end
 	T.eq(Codec.DecodeHello(text:sub(1, -2)), nil)
-	local newer = Codec.DecodeHello("H2" .. text:sub(3))
-	T.eq(newer.proto, 2)
+	local newer = Codec.DecodeHello("H" .. ns.Util.Enc(Codec.PROTO + 1) .. text:sub(3))
+	T.eq(newer.proto, Codec.PROTO + 1)
 	T.eq(newer.digests, nil)
 end)
 

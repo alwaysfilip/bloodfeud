@@ -11,6 +11,7 @@ local SKULL = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8"
 local FLAT = "Interface\\Buttons\\WHITE8x8"
 local SOUND_KOS = 8959 -- SOUNDKIT.RAID_WARNING
 local SOUND_GUILD = 3081 -- SOUNDKIT.TELL_MESSAGE
+local SOUND_ACHIEVEMENT = 888 -- SOUNDKIT.LEVEL_UP
 local SHOW_SECONDS = 7
 
 ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ local banner
 
 local function createBanner()
 	local f = CreateFrame("Frame", "BloodFeudAlertBanner", UIParent, "BackdropTemplate")
-	f:SetSize(480, 86)
+	f:SetSize(480, 96)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -150)
 	f:SetFrameStrata("HIGH")
 	f:SetBackdrop({ bgFile = FLAT, edgeFile = FLAT, edgeSize = 2 })
@@ -47,7 +48,7 @@ local function createBanner()
 	f.detail:SetPoint("RIGHT", f, "RIGHT", -12, 0)
 	f.detail:SetJustifyH("LEFT")
 	f.detail:SetWordWrap(true)
-	f.detail:SetMaxLines(2)
+	f.detail:SetMaxLines(3)
 	return f
 end
 
@@ -115,6 +116,8 @@ function Alerts:Player(subject, seen, caveat)
 		local line = what
 		if guild then line = (line ~= "" and (line .. " · ") or "") .. Fmt.Color(Fmt.AMBER, "<" .. guild .. ">") end
 		local detail = Alerts.ReasonLine(subject)
+		local bounty = ns.Bounties and ns.Bounties:Line(seen, subject.key)
+		if bounty then detail = detail .. "\n" .. Fmt.Color(Fmt.GOLD, bounty) end
 		if caveat then detail = Fmt.Color(Fmt.AMBER, L.ALERT_NAME_ONLY) .. "\n" .. detail end
 		showBanner(L.ALERT_TITLE, 1, 0.42, 0.36, name .. (line ~= "" and ("  |cffe8e6df" .. line .. "|r") or ""), detail)
 	end
@@ -126,7 +129,8 @@ function Alerts:Player(subject, seen, caveat)
 end
 
 --- A member of a listed guild is in front of us: a quieter alert.
-function Alerts:Guild(guildSubject, seen)
+--- `bounty` is the bounty line when there is also a price on their head.
+function Alerts:Guild(guildSubject, seen, bounty)
 	if not ns.settings.guildAlerts then return false end
 	if not cooled("g:" .. seen.key) then return false end
 	local hex = Fmt.ClassHex(seen.class)
@@ -136,13 +140,41 @@ function Alerts:Guild(guildSubject, seen)
 		local what = Fmt.Describe(seen)
 		showBanner(L.ALERT_GUILD_TITLE, 1, 0.70, 0.28,
 			name .. "  " .. Fmt.Color(Fmt.AMBER, "<" .. guildSubject.name .. ">"),
-			(what ~= "" and (what .. " · ") or "") .. Alerts.ReasonLine(guildSubject))
+			(what ~= "" and (what .. " · ") or "") .. Alerts.ReasonLine(guildSubject)
+				.. (bounty and ("\n" .. Fmt.Color(Fmt.GOLD, bounty)) or ""))
 	end
 	if ns.settings.chat then
-		ns:Print(L.ALERT_GUILD_CHAT:format(name, guildSubject.name))
+		ns:Print(L.ALERT_GUILD_CHAT:format(name, guildSubject.name) .. (bounty and (". " .. bounty) or ""))
 	end
 	play(SOUND_GUILD)
 	return true
+end
+
+--- An enemy with a price on their head who is not on the list itself.
+function Alerts:Bounty(seen, line)
+	if not ns.settings.bountyAlerts then return false end
+	if not cooled("b:" .. seen.key) then return false end
+	local hex = Fmt.ClassHex(seen.class)
+	local display = Names.Display(seen.name)
+	local name = hex and Fmt.Color(hex, display) or display
+	local what = Fmt.Describe(seen)
+	if ns.settings.banner then
+		local guild = seen.guild and ("  " .. Fmt.Color(Fmt.AMBER, "<" .. seen.guild .. ">")) or ""
+		showBanner(L.ALERT_BOUNTY_TITLE, 0.94, 0.78, 0.37, name .. guild, (what ~= "" and (what .. " · ") or "") .. line)
+	end
+	if ns.settings.chat then
+		ns:Print(L.ALERT_BOUNTY_CHAT:format(name, what ~= "" and (" (" .. what .. ")") or "", line))
+	end
+	play(SOUND_GUILD)
+	return true
+end
+
+--- One of our own achievements was just earned.
+function Alerts:Achievement(a)
+	if ns.settings.banner then
+		showBanner(L.ACH_TITLE, 0.94, 0.78, 0.37, Fmt.Color(Fmt.GOLD, a.name), a.desc)
+	end
+	play(SOUND_ACHIEVEMENT)
 end
 
 --- Show the banner with sample data (used by /feud test).

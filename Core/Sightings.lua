@@ -28,6 +28,7 @@ function Sightings:Report(key, info)
 	self.recent[key] = now
 	self.lastSent = now
 	ns.Comm.Send("sight", Codec.EncodeSighting({ key = key, name = info.name, map = map, x = x, y = y, t = now }))
+	if ns.Progress then ns.Progress:Bump("sightings") end
 end
 
 --- A guildmate's sighting arrived.

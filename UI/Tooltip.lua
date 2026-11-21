@@ -1,4 +1,5 @@
--- Adds the Kill on Sight lines to the tooltip of a listed player.
+-- Adds the Kill on Sight and bounty lines to the tooltip of an enemy player,
+-- and a guildmate's Blood Feud rank to theirs.
 local _, ns = ...
 
 local Util, Fmt, Names = ns.Util, ns.Fmt, ns.Names
@@ -39,6 +40,22 @@ local function addGuild(tooltip, guild)
 	tooltip:AddLine(L.TIP_BY:format(Names.Display(first.author), Fmt.Ago(first.at)), 0.79, 0.78, 0.74)
 end
 
+local function addBounty(tooltip, info, key)
+	local line = ns.Bounties and ns.Bounties:Line(info, key)
+	if line then tooltip:AddLine(line, 0.94, 0.78, 0.37) end
+end
+
+--- A guildmate: their Blood Feud rank, if they run the addon.
+local function addGuildmate(tooltip, session, unit)
+	if not (_G.UnitIsInMyGuild and _G.UnitIsInMyGuild(unit)) then return end
+	local name = Names.OfUnit(unit)
+	if not name then return end
+	local rec = session.store:Member(Names.Key(name))
+	if not rec then return end
+	local rank = ns.Progress.RankFor(rec.kills, ns.Progress.Ladder(session.store))
+	tooltip:AddLine(L.TIP_GUILDMATE:format(rank and rank.title or L.UNRANKED, rec.kills), 0.94, 0.78, 0.37)
+end
+
 local function onUnit(tooltip)
 	if tooltip ~= GameTooltip then return end
 	local session = ns.session
@@ -47,18 +64,24 @@ local function onUnit(tooltip)
 	local _, unit = tooltip:GetUnit()
 	if not unit or Util.IsSecret(unit) then return end
 	local info = ns.Detect.Inspect(unit)
-	if not info then return end
+	if not info then
+		addGuildmate(tooltip, session, unit)
+		return
+	end
 
-	local key, how = ns.Detect.Match(session.store, info)
+	local key = ns.Detect.Match(session.store, info)
 	if key then
 		local subject = session.store:Player(key)
 		if not subject then return end
-		local known = subject.facts and subject.facts.guid
-		if how == "first" and known and info.guid and known ~= info.guid then return end
 		addPlayer(tooltip, subject)
+		addBounty(tooltip, info, key)
 	elseif info.guild and session.store:IsGuildListed(info.guild) then
 		local guild = session.store:Guild(Util.Fold(info.guild))
 		if guild then addGuild(tooltip, guild) end
+		addBounty(tooltip, info)
+	elseif ns.Bounties and ns.Bounties:Line(info) then
+		tooltip:AddLine(" ")
+		addBounty(tooltip, info)
 	end
 end
 

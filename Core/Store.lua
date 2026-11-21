@@ -7,6 +7,10 @@
 --   facts    one per listed player: GUID, class, race, level, guild (kind "f").
 --   scores   one per (listed player, author): how often the author killed
 --            them and was killed by them (kind "c"). Only the author writes it.
+--   members  one per guildmate: their own totals and achievements (kind "m").
+--   tiers    the guild's rank ladder as officers changed it (kind "t").
+--   bounties one per (target, poster), on a player or a guild (kind "b"),
+--            and one claim tally per (bounty, claimer) while it is up ("k").
 --   seen     last sighting per player. Local and best-effort, never versioned.
 --
 -- Pure Lua: no WoW API, so the whole thing runs in the offline tests.
@@ -27,6 +31,11 @@ local DMOD = Codec.DIGEST_MOD
 Store.TOMB_DAYS = 180 -- removals stay in the synced set this long
 Store.FUTURE = 120 -- seconds a timestamp may be ahead of our clock
 Store.LOG_MAX = 300
+Store.MEMBER_DAYS = 365 -- a guildmate's totals leave the set after a year of silence
+
+-- Kinds whose changes go in the log, and that are removed with tombstones.
+local LOGGED = { r = true, g = true, b = true, t = true }
+local TOMBED = { r = true, g = true, b = true }
 
 local function day(t)
 	return floor(t / 86400)
@@ -73,6 +82,8 @@ function Store.New(data, now)
 	self.bucketOf, self.inSet, self.bset, self.sum = {}, {}, {}, {}
 	self.live, self.any, self.glive, self.gidx = {}, {}, {}, {}
 	self.scores = {} -- player key -> { [id] = true } for kind "c"
+	self.claims = {} -- bounty id -> { [id] = true } for kind "k"
+	self.blive = {} -- scope .. target key -> number of live bounties
 	self.count = 0
 	for b = 0, NB - 1 do
 		self.bset[b] = {}
@@ -93,7 +104,7 @@ function Store.New(data, now)
 	end
 	-- Reports first, so facts and scores see the right "has a live report"
 	-- state.
-	local function dependent(rec) return rec.k == "f" or rec.k == "c" end
+	local function dependent(rec) return rec.k == "f" or rec.k == "c" or rec.k == "k" end
 	sort(loaded, function(a, b)
 		if dependent(a) ~= dependent(b) then return dependent(b) end
 		return a.id < b.id
@@ -120,8 +131,18 @@ end
 -- Internal bookkeeping
 ---------------------------------------------------------------------------
 
+-- A claim belongs to one posting of its bounty: it counts while that bounty
+-- is up, and only if it was made after the bounty was (last) posted. Claims
+-- from before a take-down do not come back when the bounty is posted again.
+function Store:_claimCounts(rec)
+	local bounty = self.recs[rec.bid]
+	return bounty ~= nil and not bounty.del and rec.ts >= bounty.at
+end
+
 function Store:_wantInSet(rec, now)
 	if rec.k == "f" or rec.k == "c" then return (self.live[rec.key] or 0) > 0 end
+	if rec.k == "k" then return self:_claimCounts(rec) end
+	if rec.k == "m" then return day(now) - day(rec.ts) < Store.MEMBER_DAYS end
 	if rec.del then return day(now) - day(rec.ts) < Store.TOMB_DAYS end
 	return true
 end
@@ -156,6 +177,30 @@ function Store:_refreshFacts(key, now)
 	end
 end
 
+-- Claims travel only while their bounty is up.
+function Store:_refreshClaims(bid, now)
+	local set = self.claims[bid]
+	if not set then return end
+	for id in pairs(set) do
+		local rec = self.recs[id]
+		self:_setMember(rec, self:_wantInSet(rec, now))
+	end
+end
+
+local function index(t, key, id, add)
+	local set = t[key]
+	if add then
+		if not set then
+			set = {}
+			t[key] = set
+		end
+		set[id] = true
+	elseif set then
+		set[id] = nil
+		if next(set) == nil then t[key] = nil end
+	end
+end
+
 local function bump(t, key, delta)
 	local v = (t[key] or 0) + delta
 	t[key] = v > 0 and v or nil
@@ -174,17 +219,17 @@ function Store:_attach(rec, now)
 	elseif rec.k == "g" then
 		if not rec.del then bump(self.glive, rec.key, 1) end
 	elseif rec.k == "c" then
-		local set = self.scores[rec.key]
-		if not set then
-			set = {}
-			self.scores[rec.key] = set
-		end
-		set[id] = true
-	elseif rec.guid then
+		index(self.scores, rec.key, id, true)
+	elseif rec.k == "k" then
+		index(self.claims, rec.bid, id, true)
+	elseif rec.k == "b" then
+		if not rec.del then bump(self.blive, rec.scope .. rec.key, 1) end
+	elseif rec.k == "f" and rec.guid then
 		self.gidx[rec.guid] = rec.key
 	end
 	self:_setMember(rec, self:_wantInSet(rec, now))
 	if rec.k == "r" then self:_refreshFacts(rec.key, now) end
+	if rec.k == "b" then self:_refreshClaims(id, now) end
 end
 
 function Store:_detach(id, now)
@@ -197,12 +242,12 @@ function Store:_detach(id, now)
 	elseif rec.k == "g" then
 		if not rec.del then bump(self.glive, rec.key, -1) end
 	elseif rec.k == "c" then
-		local set = self.scores[rec.key]
-		if set then
-			set[id] = nil
-			if next(set) == nil then self.scores[rec.key] = nil end
-		end
-	elseif rec.guid and self.gidx[rec.guid] == rec.key then
+		index(self.scores, rec.key, id, false)
+	elseif rec.k == "k" then
+		index(self.claims, rec.bid, id, false)
+	elseif rec.k == "b" then
+		if not rec.del then bump(self.blive, rec.scope .. rec.key, -1) end
+	elseif rec.k == "f" and rec.guid and self.gidx[rec.guid] == rec.key then
 		self.gidx[rec.guid] = nil
 	end
 	self.bset[self.bucketOf[id]][id] = nil
@@ -210,6 +255,7 @@ function Store:_detach(id, now)
 	self.recs[id] = nil
 	self.data.recs[id] = nil
 	if rec.k == "r" then self:_refreshFacts(rec.key, now) end
+	if rec.k == "b" then self:_refreshClaims(id, now) end
 	return rec
 end
 
@@ -341,7 +387,7 @@ function Store:Merge(rec, now, via)
 	if mine then self:_detach(id, now) end
 	self:_attach(rec, now)
 	self.data.dirty[id] = nil
-	if rec.k == "r" or rec.k == "g" then
+	if LOGGED[rec.k] then
 		self:_log(now, rec.del and "remove" or (mine and not mine.del and "edit" or "add"), rec, mine, via)
 	end
 	self:_fire(id, rec, mine)
@@ -354,7 +400,7 @@ end
 function Store:Age(now)
 	local old = {}
 	for id, rec in pairs(self.recs) do
-		if (rec.k == "r" or rec.k == "g") and rec.del and day(now) - day(rec.ts) >= Store.TOMB_DAYS then
+		if TOMBED[rec.k] and rec.del and day(now) - day(rec.ts) >= Store.TOMB_DAYS then
 			old[#old + 1] = id
 		end
 	end
@@ -365,7 +411,13 @@ function Store:Age(now)
 	end
 	local orphans = {}
 	for id, rec in pairs(self.recs) do
-		if (rec.k == "f" or rec.k == "c") and not self.any[rec.key] then orphans[#orphans + 1] = id end
+		if (rec.k == "f" or rec.k == "c") and not self.any[rec.key] then
+			orphans[#orphans + 1] = id
+		elseif rec.k == "k" and (not self.recs[rec.bid] or (not self.recs[rec.bid].del and not self:_claimCounts(rec))) then
+			orphans[#orphans + 1] = id -- its bounty is gone for good, or was posted anew since
+		elseif rec.k == "m" and day(now) - day(rec.ts) >= Store.MEMBER_DAYS then
+			orphans[#orphans + 1] = id
+		end
 	end
 	for i = 1, #orphans do
 		self:_detach(orphans[i], now)
@@ -422,7 +474,7 @@ function Store:_write(rec, now)
 	if old then self:_detach(id, now) end
 	self:_attach(rec, now)
 	self.data.dirty[id] = true
-	if rec.k == "r" or rec.k == "g" then
+	if LOGGED[rec.k] then
 		self:_log(now, rec.del and "remove" or (old and not old.del and "edit" or "add"), rec, old, nil)
 	end
 	self:_fire(id, rec, old)
@@ -446,9 +498,9 @@ end
 --- Remove one report. Returns the tombstone, or nil if there was nothing live.
 function Store:Remove(id, editor, now)
 	local mine = self.recs[id]
-	if not mine or mine.del or (mine.k ~= "r" and mine.k ~= "g") then return nil end
+	if not mine or mine.del or not TOMBED[mine.k] then return nil end
 	return self:_write(Codec.Seal({
-		k = mine.k, name = mine.name, author = mine.author, mby = editor,
+		k = mine.k, name = mine.name, author = mine.author, mby = editor, scope = mine.scope,
 		ts = self:_nextTs(id, now), del = true,
 	}), now)
 end
@@ -513,6 +565,137 @@ function Store:Score(key)
 		return a.id < b.id
 	end)
 	return kills, deaths, list
+end
+
+---------------------------------------------------------------------------
+-- Guildmates' totals and the rank ladder
+---------------------------------------------------------------------------
+
+local MEMBER_FIELDS = { "kills", "deaths", "best", "points", "ach" }
+
+--- Write `author`'s own totals. t: { kills, deaths, best, points, ach }.
+--- Returns the new record, or nil when nothing changed.
+function Store:SetMember(author, t, now)
+	local id = Codec.Id("m", Fold(author))
+	local mine = self.recs[id]
+	local rec = { k = "m", author = author }
+	local changed = not mine
+	for i = 1, #MEMBER_FIELDS do
+		local f = MEMBER_FIELDS[i]
+		local v = math.max(floor(t[f] or 0), 0)
+		rec[f] = v
+		if mine and mine[f] ~= v then changed = true end
+	end
+	if not changed then return nil end
+	rec.ts = self:_nextTs(id, now)
+	return self:_write(Codec.Seal(rec), now)
+end
+
+function Store:Member(key)
+	local rec = self.recs[Codec.Id("m", key)]
+	return rec
+end
+
+--- Every guildmate's totals record, unsorted.
+function Store:Members()
+	local list = {}
+	for id, rec in pairs(self.recs) do
+		if rec.k == "m" and self.inSet[id] then list[#list + 1] = rec end
+	end
+	return list
+end
+
+--- Set rank tier n (1..MAX_TIERS). An empty title switches the tier off.
+function Store:SetTier(n, kills, title, editor, now)
+	local id = Codec.Id("t", tostring(n))
+	local mine = self.recs[id]
+	kills = math.min(math.max(floor(kills), 0), Codec.MAX_SCORE)
+	title = Util.Clean(title or "", Codec.MAX_TITLE)
+	if mine and mine.kills == kills and mine.title == title then return nil end
+	return self:_write(Codec.Seal({ k = "t", n = n, kills = kills, title = title, mby = editor,
+		ts = self:_nextTs(id, now) }), now)
+end
+
+--- Tier records the officers have written, by tier number.
+function Store:Tiers()
+	local out = {}
+	for n = 1, Codec.MAX_TIERS do
+		out[n] = self.recs[Codec.Id("t", tostring(n))]
+	end
+	return out
+end
+
+---------------------------------------------------------------------------
+-- Bounties
+---------------------------------------------------------------------------
+
+--- Post (or change) `author`'s bounty on a player (scope "p") or a guild
+--- (scope "g"). `editor` is who writes it now: the author, or an officer.
+function Store:PostBounty(scope, name, points, reward, author, editor, now)
+	editor = editor or author
+	local id = Codec.BountyId(scope, Fold(name), Fold(author))
+	local mine = self.recs[id]
+	local live = mine and not mine.del and mine or nil
+	points = math.min(math.max(floor(points or 1), 1), Codec.MAX_POINTS)
+	return self:_write(Codec.Seal({
+		k = "b", scope = scope, name = live and live.name or name, author = live and live.author or author,
+		mby = editor, ts = self:_nextTs(id, now), at = live and live.at or now, points = points,
+		reward = Util.Clean(reward or "", Codec.MAX_REWARD),
+	}), now)
+end
+
+--- Count one more claim by `claimer` on a live bounty. Returns the claim
+--- record, or nil when the bounty is not up.
+function Store:Claim(bid, claimer, now)
+	local bounty = self.recs[bid]
+	if not bounty or bounty.del then return nil end
+	local id = Codec.ClaimId(bounty.scope, bounty.key, bounty.akey, Fold(claimer))
+	local mine = self.recs[id]
+	-- A tally from an earlier posting of this bounty starts again from zero.
+	local before = mine and self:_claimCounts(mine) and mine.count or 0
+	return self:_write(Codec.Seal({
+		k = "k", scope = bounty.scope, key = bounty.key, poster = bounty.author, author = claimer,
+		ts = math.max(self:_nextTs(id, now), bounty.at), count = math.min(before + 1, Codec.MAX_SCORE),
+	}), now)
+end
+
+function Store:HasBounty(scope, key)
+	return self.blive[scope .. key] ~= nil
+end
+
+--- A live bounty with its claims: { rec, claims = {claim records}, total }.
+function Store:_bountyView(rec)
+	local claims, total = {}, 0
+	local set = self.claims[rec.id]
+	if set then
+		for id in pairs(set) do
+			local c = self.recs[id]
+			if self:_claimCounts(c) then
+				claims[#claims + 1] = c
+				total = total + c.count
+			end
+		end
+	end
+	sort(claims, function(a, b)
+		if a.count ~= b.count then return a.count > b.count end
+		return a.id < b.id
+	end)
+	return { rec = rec, key = rec.id, claims = claims, total = total }
+end
+
+--- Live bounties, optionally only those on one target (scope and key).
+function Store:Bounties(scope, key)
+	local list = {}
+	for _, rec in pairs(self.recs) do
+		if rec.k == "b" and not rec.del and (not scope or (rec.scope == scope and rec.key == key)) then
+			list[#list + 1] = self:_bountyView(rec)
+		end
+	end
+	sort(list, function(a, b)
+		if a.rec.points ~= b.rec.points then return a.rec.points > b.rec.points end
+		return a.key < b.key
+	end)
+	return list
 end
 
 ---------------------------------------------------------------------------

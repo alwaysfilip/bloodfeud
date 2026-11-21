@@ -78,7 +78,12 @@ end
 local function announce(rec, sender, _, direct)
 	-- Only speak about changes as they happen, never about the backlog that
 	-- arrives while catching up.
-	if not direct or (rec.k ~= "r" and rec.k ~= "g") or not ns.settings.chat then return end
+	if not direct or not ns.settings.chat then return end
+	if rec.k == "b" or rec.k == "k" then
+		if ns.Bounties then ns.Bounties.Announce(rec, sender) end
+		return
+	end
+	if rec.k ~= "r" and rec.k ~= "g" then return end
 	local now = GetServerTime()
 	if now - rec.ts > 120 then return end
 	local subject = rec.k == "g" and ("<" .. rec.name .. ">") or Names.Display(rec.name)
@@ -91,7 +96,14 @@ end
 
 local function denied(rec, sender)
 	if not ns.settings.chat then return end
-	local subject = rec.k == "g" and ("<" .. rec.name .. ">") or Names.Display(rec.name)
+	local subject
+	if rec.k == "t" then
+		subject = L.RANK_LADDER
+	elseif rec.k == "m" or rec.k == "k" or rec.k == "c" then
+		subject = Names.Display(rec.author)
+	else
+		subject = (rec.k == "g" or rec.scope == "g") and ("<" .. rec.name .. ">") or Names.Display(rec.name)
+	end
 	ns:Print(L.MSG_DENIED:format(Names.Display(sender), subject))
 end
 

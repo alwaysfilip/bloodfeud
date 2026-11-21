@@ -46,7 +46,7 @@ function T.ok(value, msg)
 	return value
 end
 
-for _, file in ipairs({ "test_util", "test_codec", "test_store", "test_sync", "test_game" }) do
+for _, file in ipairs({ "test_util", "test_codec", "test_store", "test_sync", "test_progress", "test_game" }) do
 	io.write(file .. "\n")
 	local chunk = assert(loadfile(root .. "/tests/" .. file .. ".lua"))
 	chunk(T)

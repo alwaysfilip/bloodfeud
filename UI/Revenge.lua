@@ -95,5 +95,6 @@ function Revenge:Accept()
 	if done then
 		f.reason:ClearFocus()
 		f:Hide()
+		if ns.Progress then ns.Progress:Bump("revengeAdds") end
 	end
 end

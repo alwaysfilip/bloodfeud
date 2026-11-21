@@ -26,6 +26,17 @@ that player themselves.
 - **Revenge.** When the same enemy kills you twice within 30 minutes, Blood
   Feud offers to put them on the list. Both numbers can be changed in the
   options.
+- **Radar.** A small window listing the enemy players around you, the ones on
+  the list or with a bounty first. Shift-click to list them, right-click to
+  post a bounty.
+- **Bounties.** Anyone can put a price on an enemy player or a whole guild,
+  in points plus an optional promise such as "50 gold". Every killing blow by
+  a guildmate claims it, and the board shows who has collected.
+- **Ranks.** Your kills earn you a rank, from Recruit to Feudlord. Officers can
+  rename the ranks and move the thresholds for the whole guild. Guildmates see
+  each other's rank in the Ranks tab and in tooltips.
+- **Achievements.** 31 of them, from First Blood to Clan Breaker. Your guild is
+  told when you earn one, and can see which ones you have.
 
 ## Commands
 
@@ -37,6 +48,14 @@ that player themselves.
 | `/feud remove Firstname-Surname` | Remove your own report |
 | `/feud guild Guild Name = reason` | List a guild (officers) |
 | `/feud score [Firstname-Surname]` | Your kills and deaths, or one enemy's score |
+| `/feud radar` | Show or hide the radar |
+| `/feud bounty [points] [reward]` | Post a bounty on your target |
+| `/feud bounty Firstname-Surname [points] [reward]` | Post a bounty by name (with no enemy targeted) |
+| `/feud bounty <Guild Name> [points] [reward]` | Post a bounty on a guild |
+| `/feud bounties` | Open the bounty board |
+| `/feud rank` | Your rank, and the guild's ranks |
+| `/feud rank set <n> <kills> <title>` | Change a rank (officers) |
+| `/feud ach` | Your achievements |
 | `/feud sync` | Ask the guild for changes now |
 | `/feud log` | Recent changes and who sent them |
 | `/feud options` | Open the options page |
@@ -46,6 +65,10 @@ that player themselves.
 - Any member can add a player.
 - A report can be removed by the member who wrote it, or by an officer.
 - Only officers can list or unlist a guild.
+- Any member can post a bounty. It can be taken down by its poster or an
+  officer.
+- Only officers can change the ranks.
+- Only you can write your own totals, achievements and bounty claims.
 
 "Officer" means the guild master and every rank with the officer permission
 ticked in the guild control panel.
@@ -67,7 +90,13 @@ works within them rather than around them:
 - **Kills and deaths are counted in the open world only.** The client tells
   addons who landed a killing blow and, through the death recap, who killed
   you. It does not do so inside instances, so nothing is counted there. A
-  kill only counts when it was your (or your pet's) killing blow.
+  kill only counts when it was your (or your pet's) killing blow. Ranks,
+  bounty claims and most achievements build on those kills.
+- **The radar is a list, not a map.** Addons cannot read where an enemy
+  stands, so the radar shows who the game has shown you in the last minute,
+  not their position.
+- **Bounty gold is on trust.** An addon cannot move gold. The points are what
+  Blood Feud tracks; anything promised in the reward text is up to the poster.
 
 ## An honest note on permissions
 
@@ -83,8 +112,9 @@ always undo it.
 
 Blood Feud only talks on your guild's hidden addon channel. It sends the
 list entries, what it saw of a listed player (class, level, guild), your
-kill and death count against listed players, and sightings of listed players
-with your zone and coordinates. Sightings can be
+kill and death count against listed players, your total kills, deaths, best
+streak, bounty points and achievements, the bounties you post and claim, and
+sightings of listed players with your zone and coordinates. Sightings can be
 turned off in the options. Nothing is sent anywhere else.
 
 ## Development

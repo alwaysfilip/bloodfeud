@@ -133,6 +133,100 @@ L.OPT_REVENGE_WINDOW_TIP = "The deaths must all fall within this many minutes."
 L.OPT_MINIMAP = "Show the minimap button"
 L.OPT_MINIMAP_TIP = "Shows the Blood Feud button on the minimap."
 
+-- Tabs, columns and buttons for bounties, ranks and achievements
+L.TAB_BOUNTIES = "Bounties"
+L.TAB_RANKS = "Ranks"
+L.TAB_ACHIEVEMENTS = "Achievements"
+L.OPTIONS = "Options"
+L.COL_TARGET = "Target"
+L.COL_POINTS = "Points"
+L.COL_REWARD = "Reward"
+L.COL_POSTED_BY = "Posted by"
+L.COL_CLAIMS = "Claimed"
+L.COL_POSTED = "Posted"
+L.COL_RANK = "Rank"
+L.COL_KILLS = "Kills"
+L.COL_DEATHS = "Deaths"
+L.COL_STREAK = "Best streak"
+L.COL_BOUNTY_POINTS = "Bounty pts"
+L.COL_ACHIEVEMENTS = "Achievements"
+L.COL_ACHIEVEMENT = "Achievement"
+L.COL_DESCRIPTION = "How"
+L.COL_EARNED = "Earned"
+L.COL_GUILDMATES = "Guildmates"
+L.COL_TITLE = "Title"
+L.NO_CLAIMS = "not yet"
+L.EMPTY_BOUNTIES = "No bounties are up. Post one on an enemy player or guild."
+L.EMPTY_RANKS = "Nobody's totals have arrived yet. They come in as guildmates with the addon log on."
+L.BOUNTY_NOTICE = "Rewards are points. Gold promised in the reward text is paid by the poster, on trust."
+L.POST_BOUNTY = "Post bounty"
+L.REMOVE_BOUNTY = "Take down my bounty"
+L.REMOVE_BOUNTY_ANY = "Take down bounty"
+L.EDIT_RANKS = "Edit ranks"
+L.RESET_DEFAULTS = "Built-in ranks"
+L.UNRANKED = "Unranked"
+L.MY_RANK = "Your rank: %s (%d kills)"
+L.NEXT_RANK = "%s in %d more kills"
+L.MEMBER_LINE = "%d kills · %d deaths · best streak %d · %d bounty points"
+L.UPDATED = "Updated %s"
+L.ALSO_EARNED = "Also earned by: %s"
+L.ACH_PROGRESS = "%d of %d earned. Your guildmates see which ones you have."
+L.TIP_GUILDMATE = "Blood Feud: %s (%d kills)"
+L.RANK_LADDER = "the rank ladder"
+
+-- Bounties
+L.DIALOG_BOUNTY = "Post a bounty"
+L.FIELD_POINTS = "Points per kill"
+L.POINTS_HINT = "1 to %d"
+L.FIELD_REWARD = "Reward (optional, e.g. 50 gold)"
+L.BOUNTY_HINT = "Every killing blow by a guildmate claims it. It stays up until you take it down."
+L.BOUNTY_LINE = "Bounty: %d points (%s)"
+L.BOUNTY_WORTH = "%d points per kill"
+L.BOUNTY_PROMISED = "Promised: %s"
+L.CLAIMS_N = "%d claimed"
+L.MENU_BOUNTY = "Put a bounty on them"
+L.ALERT_BOUNTY_TITLE = "Bounty"
+L.ALERT_BOUNTY_CHAT = "|cfff0c75eBounty nearby:|r %s%s. %s"
+L.MSG_BOUNTY_POSTED = "Bounty on %s posted: %d points per kill."
+L.MSG_BOUNTY_REMOVED = "Bounty on %s taken down."
+L.MSG_BOUNTY_FIRST_NAME = "No surname given: it applies to every enemy called %s."
+L.MSG_BOUNTY_UP = "%s put a bounty on %s: %d points%s"
+L.MSG_BOUNTY_DOWN = "%s took down the bounty on %s."
+L.MSG_BOUNTY_CLAIMED = "%s claimed the bounty on %s (+%d)."
+L.MSG_BOUNTY_CLAIMED_YOU = "|cfff0c75eBounty claimed:|r %s, +%d points from %s.%s"
+
+-- Ranks and achievements
+L.DIALOG_RANKS = "Guild ranks"
+L.RANKS_HINT = "Kills needed and the title for each rank. Clear a title to switch that rank off."
+L.MSG_RANKS_SAVED = "%d rank changes sent to the guild."
+L.MSG_RANK_NEEDS_KILLS = "Rank %d (%s) needs a kill count. Nothing was saved."
+L.RANK_USAGE = "/feud rank set <1-%d> <kills> <title>, e.g. /feud rank set 2 15 Bloodhound"
+L.RANK_UP = "%s is now |cfff0c75e%s|r."
+L.ACH_TITLE = "Achievement"
+L.ACH_EARNED = "%s earned |cfff0c75e%s|r."
+L.ACH_EARNED_YOU = "Achievement: |cfff0c75e%s|r. %s"
+
+-- Radar
+L.RADAR_TITLE = "Radar"
+L.RADAR_TITLE_N = "Radar · %d"
+L.RADAR_EMPTY = "No enemy players around."
+L.RADAR_KOS = "KoS"
+L.RADAR_BOUNTY = "Bounty"
+L.RADAR_GUILD = "Guild"
+L.RADAR_NEAR = "near"
+L.RADAR_AGO = "%ds"
+L.RADAR_HINT = "Shift-click to put on the list. Right-click to post a bounty."
+L.MSG_RADAR_ON = "Radar on. It shows while enemy players are around."
+L.MSG_RADAR_OFF = "Radar off. /feud radar turns it back on."
+L.OPT_BOUNTY_ALERTS = "Alert for players with a bounty"
+L.OPT_BOUNTY_ALERTS_TIP = "Shows a banner when you meet someone with a bounty on them who is not on the list."
+L.OPT_RADAR = "Show the radar"
+L.OPT_RADAR_TIP = "A small window listing the enemy players around you, the ones on the list first."
+L.OPT_RADAR_AUTO = "Radar only when enemies are around"
+L.OPT_RADAR_AUTO_TIP = "Hides the radar while there is nobody to show."
+L.OPT_RADAR_SOUND = "Radar ping for new enemies"
+L.OPT_RADAR_SOUND_TIP = "Plays a short ping each time a new enemy player shows up on the radar."
+
 L.HELP = {
 	"/feud - open the list",
 	"/feud add [Name] [reason] - add your target, or a player by name",
@@ -140,6 +234,11 @@ L.HELP = {
 	"/feud guild <Guild name> = <reason> - add a guild (officers)",
 	"/feud sync - ask the guild for changes now",
 	"/feud score [Name] - kills and deaths against enemy players",
+	"/feud radar - show or hide the radar",
+	"/feud bounty [Name] [points] [reward] - bounty on your target, or by name (<Guild Name> for a guild)",
+	"/feud bounties - open the bounty board",
+	"/feud rank - your rank; officers: /feud rank set <n> <kills> <title>",
+	"/feud ach - your achievements",
 	"/feud log - show recent changes and who sent them",
 	"/feud probe - write a diagnostic report (for troubleshooting)",
 }

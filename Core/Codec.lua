@@ -10,7 +10,16 @@
 --                                                 facts about a listed player
 --   c  key ~ author ~ ts ~ kills ~ deaths          author's score against a
 --                                                 listed player
--- `mby` (last modifier) is left empty when it equals the author.
+--   m  author ~ ts ~ kills ~ deaths ~ best ~ points ~ achievements
+--                                                 a guildmate's own totals
+--   t  n ~ ts ~ mby ~ kills ~ title               rank tier n (officers)
+--   b  name ~ author ~ ts ~ mby ~ at ~ scope ~ points ~ reward
+--                                                 bounty on a player or guild
+--   B  name ~ author ~ ts ~ mby ~ scope           bounty, removed
+--   k  scope ~ target ~ poster ~ author ~ ts ~ count
+--                                                 author's claims on a bounty
+-- `mby` (last modifier) is left empty when it equals the author. A bounty's
+-- scope is "p" (player) or "g" (guild).
 --
 -- Frames:
 --   H <proto> <count:3> <root:6> <flags:1> <64 bucket digests, 3 chars each>
@@ -26,7 +35,7 @@ local concat = table.concat
 local Codec = {}
 ns.Codec = Codec
 
-Codec.PROTO = 1
+Codec.PROTO = 2 -- 2: members, rank tiers, bounties and claims (0.2.0)
 Codec.BUCKETS = 64
 Codec.DIGEST_MOD = 262144 -- 18 bits = 3 base-64 digits
 Codec.MAX_FRAME = 255
@@ -35,6 +44,11 @@ Codec.MAX_GUILD = 72
 Codec.MAX_REASON = 100
 Codec.MAX_GUID = 40
 Codec.MAX_SCORE = 999999
+Codec.MAX_TITLE = 32
+Codec.MAX_REWARD = 40
+Codec.MAX_POINTS = 100 -- per bounty claim
+Codec.MAX_TIERS = 12
+Codec.MAX_ACHIEVEMENTS = 48 -- bits in one 8-digit number
 Codec.UPDATE_HEADER = 12
 Codec.MAX_RECORD = 243 -- MAX_FRAME minus the update header
 
@@ -93,18 +107,48 @@ end
 --- per player.
 function Codec.Id(kind, key, akey)
 	if kind == "f" then return "f:" .. key end
-	if kind == "c" then return "c:" .. key .. "/" .. akey end
+	if kind == "m" then return "m:" .. key end
+	if kind == "t" then return "t:" .. key end
 	return kind .. ":" .. key .. "/" .. akey
+end
+
+--- A bounty's id: scope ("p" or "g"), target key and poster key.
+function Codec.BountyId(scope, key, pkey)
+	return "b:" .. scope .. key .. "/" .. pkey
+end
+
+--- The id of `akey`'s claims on a bounty.
+function Codec.ClaimId(scope, key, pkey, akey)
+	return "k:" .. scope .. key .. "/" .. pkey .. "/" .. akey
 end
 
 --- Fill in the derived fields (keys, id) of a record table and return it.
 function Codec.Normalize(rec)
-	if rec.k == "f" then
+	local k = rec.k
+	if k == "f" then
 		rec.id = Codec.Id("f", rec.key)
-	elseif rec.k == "c" then
+	elseif k == "c" then
 		rec.akey = Fold(rec.author)
 		rec.mby = rec.author -- only the author ever writes their own score
 		rec.id = Codec.Id("c", rec.key, rec.akey)
+	elseif k == "m" then
+		rec.akey = Fold(rec.author)
+		rec.key = rec.akey
+		rec.mby = rec.author
+		rec.id = Codec.Id("m", rec.akey)
+	elseif k == "t" then
+		rec.key = tostring(rec.n)
+		rec.id = Codec.Id("t", rec.key)
+	elseif k == "b" then
+		rec.key = Fold(rec.name)
+		rec.akey = Fold(rec.author)
+		rec.id = Codec.BountyId(rec.scope, rec.key, rec.akey)
+	elseif k == "k" then
+		rec.pkey = Fold(rec.poster)
+		rec.akey = Fold(rec.author)
+		rec.mby = rec.author
+		rec.bid = Codec.BountyId(rec.scope, rec.key, rec.pkey)
+		rec.id = Codec.ClaimId(rec.scope, rec.key, rec.pkey, rec.akey)
 	else
 		rec.key = Fold(rec.name)
 		rec.akey = Fold(rec.author)
@@ -126,7 +170,25 @@ function Codec.EncodeRecord(rec)
 	if k == "c" then
 		return concat({ "c" .. esc(rec.key), esc(rec.author), Enc(rec.ts), Enc(rec.kills), Enc(rec.deaths) }, "~")
 	end
+	if k == "m" then
+		return concat({ "m" .. esc(rec.author), Enc(rec.ts), Enc(rec.kills), Enc(rec.deaths), Enc(rec.best),
+			Enc(rec.points), Enc(rec.ach) }, "~")
+	end
+	if k == "t" then
+		return concat({ "t" .. Enc(rec.n), Enc(rec.ts), esc(rec.mby), Enc(rec.kills), esc(rec.title) }, "~")
+	end
+	if k == "k" then
+		return concat({ "k" .. rec.scope, esc(rec.key), esc(rec.poster), esc(rec.author), Enc(rec.ts), Enc(rec.count) },
+			"~")
+	end
 	local mby = rec.mby == rec.author and "" or esc(rec.mby)
+	if k == "b" then
+		if rec.del then
+			return concat({ "B" .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby, rec.scope }, "~")
+		end
+		return concat({ "b" .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby, Enc(rec.at), rec.scope,
+			Enc(rec.points), esc(rec.reward or "") }, "~")
+	end
 	if rec.del then
 		return concat({ (k == "r" and "R" or "G") .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby }, "~")
 	end
@@ -135,6 +197,16 @@ end
 
 local function cleanName(s, max)
 	return s ~= "" and Util.IsClean(s, max)
+end
+
+-- Accept a parsed record only in its canonical spelling, then derive its
+-- keys, id and hash.
+local function seal(rec, text)
+	if Codec.EncodeRecord(rec) ~= text then return nil end
+	Codec.Normalize(rec)
+	rec.wire = text
+	rec.hash = Hash(text)
+	return rec
 end
 
 --- Parse one record. Returns nil for anything malformed; text fields must
@@ -186,6 +258,68 @@ function Codec.DecodeRecord(text)
 		return rec
 	end
 
+	if kind == "m" then
+		if n ~= 7 then return nil end
+		local rec = { k = "m", author = parts[1], ts = Dec(parts[2]), kills = Dec(parts[3]), deaths = Dec(parts[4]),
+			best = Dec(parts[5]), points = Dec(parts[6]), ach = Dec(parts[7]) }
+		if not rec.ts or rec.ts <= 0 or not rec.kills or not rec.deaths or not rec.best or not rec.points
+			or not rec.ach then
+			return nil
+		end
+		if rec.kills > Codec.MAX_SCORE or rec.deaths > Codec.MAX_SCORE or rec.best > Codec.MAX_SCORE
+			or rec.points > Codec.MAX_SCORE * 100 then
+			return nil
+		end
+		if not cleanName(rec.author, Codec.MAX_NAME) then return nil end
+		return seal(rec, text)
+	end
+
+	if kind == "t" then
+		if n ~= 5 then return nil end
+		local rec = { k = "t", n = Dec(parts[1]), ts = Dec(parts[2]), mby = parts[3], kills = Dec(parts[4]),
+			title = parts[5] }
+		if not rec.n or rec.n < 1 or rec.n > Codec.MAX_TIERS then return nil end
+		if not rec.ts or rec.ts <= 0 or not rec.kills or rec.kills > Codec.MAX_SCORE then return nil end
+		if not cleanName(rec.mby, Codec.MAX_NAME) or not Util.IsClean(rec.title, Codec.MAX_TITLE) then return nil end
+		return seal(rec, text)
+	end
+
+	if kind == "k" then
+		if n ~= 6 then return nil end
+		local rec = { k = "k", scope = parts[1], key = parts[2], poster = parts[3], author = parts[4],
+			ts = Dec(parts[5]), count = Dec(parts[6]) }
+		if rec.scope ~= "p" and rec.scope ~= "g" then return nil end
+		if not rec.ts or rec.ts <= 0 or not rec.count or rec.count < 1 or rec.count > Codec.MAX_SCORE then return nil end
+		local keyMax = rec.scope == "g" and Codec.MAX_GUILD or Codec.MAX_NAME
+		if not cleanName(rec.key, keyMax) or Fold(rec.key) ~= rec.key then return nil end
+		if not cleanName(rec.poster, Codec.MAX_NAME) or not cleanName(rec.author, Codec.MAX_NAME) then return nil end
+		return seal(rec, text)
+	end
+
+	if kind == "b" or kind == "B" then
+		local del = kind == "B"
+		if n ~= (del and 5 or 8) then return nil end
+		local rec = { k = "b", name = parts[1], author = parts[2], ts = Dec(parts[3]) }
+		if del then
+			rec.del, rec.scope = true, parts[5]
+		else
+			rec.at, rec.scope, rec.points, rec.reward = Dec(parts[5]), parts[6], Dec(parts[7]), parts[8]
+			if not rec.at or not rec.points or rec.points < 1 or rec.points > Codec.MAX_POINTS then return nil end
+			if not Util.IsClean(rec.reward, Codec.MAX_REWARD) then return nil end
+		end
+		if rec.scope ~= "p" and rec.scope ~= "g" then return nil end
+		if not rec.ts or rec.ts <= 0 then return nil end
+		local nameMax = rec.scope == "g" and Codec.MAX_GUILD or Codec.MAX_NAME
+		if not cleanName(rec.name, nameMax) or not cleanName(rec.author, Codec.MAX_NAME) then return nil end
+		if parts[4] == "" then
+			rec.mby = rec.author
+		else
+			if not cleanName(parts[4], Codec.MAX_NAME) or parts[4] == rec.author then return nil end
+			rec.mby = parts[4]
+		end
+		return seal(rec, text)
+	end
+
 	local del = kind == "R" or kind == "G"
 	local base = (kind == "r" or kind == "R") and "r" or ((kind == "g" or kind == "G") and "g") or nil
 	if not base then return nil end
@@ -226,6 +360,11 @@ function Codec.Seal(rec)
 			rec[field] = nil
 			rec.wire = Codec.EncodeRecord(rec)
 			if #rec.wire <= Codec.MAX_RECORD then break end
+		end
+	elseif rec.k == "b" and not rec.del then
+		while #rec.wire > Codec.MAX_RECORD and rec.reward ~= "" do
+			rec.reward = Util.Clean(Util.Truncate(rec.reward, #rec.reward - 1), Codec.MAX_REWARD)
+			rec.wire = Codec.EncodeRecord(rec)
 		end
 	end
 	rec.hash = Hash(rec.wire)

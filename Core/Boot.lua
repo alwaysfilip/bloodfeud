@@ -66,7 +66,7 @@ local function showProbe(lines)
 end
 
 local SETTINGS = { banner = true, sound = true, chat = true, nameplates = true, guildAlerts = true, sightSend = true,
-	sightShow = true, revenge = true, debug = true }
+	sightShow = true, revenge = true, bountyAlerts = true, radar = true, radarAuto = true, radarSound = true, debug = true }
 -- Numeric settings: name -> { min, max }
 local NUMBERS = { revengeCount = { 2, 10 }, revengeWindow = { 5, 120 } }
 
@@ -109,6 +109,54 @@ local function showScore(rest)
 	end
 end
 
+--- /feud bounty [points] [reward] with an enemy targeted (like /feud add,
+--- everything typed is about the target), otherwise /feud bounty Name
+--- [points] [reward]. "<Guild Name> [points] [reward]" is a guild either way.
+local function postBounty(rest)
+	local guild, tail = rest:match("^<(.-)>%s*(.*)$")
+	local scope, name = "p", nil
+	if guild then
+		scope, name = "g", guild
+	else
+		local ok, info = pcall(ns.Detect.Inspect, "target")
+		if ok and info then
+			name, tail = info.name, rest
+		else
+			local first, after = rest:match("^(%S+)%s*(.*)$")
+			if first and not first:match("^%d+$") then name, tail = first, after end
+		end
+	end
+	if not name then
+		ns.BountyDialog:Open({})
+		return
+	end
+	tail = tail or ""
+	local points, reward = tail:match("^(%d+)%s*(.*)$")
+	if not points then reward = tail end
+	-- Whatever was left out keeps the value of a bounty I already have up.
+	ns:PostBounty(scope, name, tonumber(points), reward ~= "" and reward or nil)
+end
+
+--- /feud rank: my rank; /feud rank set <n> <kills> <title> for officers.
+local function rankCommand(rest)
+	if rest:match("^set") then
+		local n, kills, title = rest:match("^set%s+(%d+)%s+(%d+)%s*(.*)$")
+		n = tonumber(n)
+		if not n or n < 1 or n > ns.Codec.MAX_TIERS then
+			ns:Print(L.RANK_USAGE:format(ns.Codec.MAX_TIERS))
+		elseif ns:SetTier(n, kills, title) then
+			ns:Print(L.MSG_RANKS_SAVED:format(1))
+		end
+		return
+	end
+	local st = ns.Progress:Stats()
+	if not st then return end
+	local rank, nextTier = ns.Progress:MyRank()
+	ns:Print(L.MY_RANK:format(rank and rank.title or L.UNRANKED, st.kills))
+	if nextTier then ns:Print(L.NEXT_RANK:format(nextTier.title, nextTier.kills - st.kills)) end
+	ns.MainFrame:Show("m")
+end
+
 local function slash(input)
 	input = Util.Clean(input or "", 300)
 	local command, rest = input:match("^(%S+)%s*(.*)$")
@@ -140,6 +188,16 @@ local function slash(input)
 		ns:Print("Asking the guild for changes.")
 	elseif command == "score" then
 		showScore(rest)
+	elseif command == "radar" then
+		ns.RadarUI:Toggle()
+	elseif command == "bounty" then
+		postBounty(rest)
+	elseif command == "bounties" then
+		ns.MainFrame:Show("b")
+	elseif command == "rank" or command == "ranks" then
+		rankCommand(rest)
+	elseif command == "ach" or command == "achievements" then
+		ns.MainFrame:Show("a")
 	elseif command == "log" then
 		showLog()
 	elseif command == "probe" then
@@ -156,11 +214,13 @@ local function slash(input)
 		if key and SETTINGS[key] then
 			ns.settings[key] = (value == "on" or value == "1" or value == "true")
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
+			if key:find("^radar") then ns.RadarUI:Update() end
 		elseif range and number then
 			ns.settings[key] = math.min(math.max(math.floor(number), range[1]), range[2])
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
 		else
-			ns:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|debug> on|off")
+			ns:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|bountyAlerts|radar|"
+				.. "radarAuto|radarSound|debug> on|off")
 			ns:Print("/feud set revengeCount <2-10> · /feud set revengeWindow <5-120 minutes>")
 		end
 	else
@@ -172,8 +232,8 @@ end
 -- Start-up
 ---------------------------------------------------------------------------
 
-local MODULES = { "Roster", "Comm", "Detect", "Sightings", "Feuds", "MainFrame", "Tooltip", "UnitMenu", "Nameplates", "Minimap",
-	"Options" }
+local MODULES = { "Roster", "Comm", "Detect", "Sightings", "Feuds", "Progress", "Radar", "MainFrame", "RadarUI", "Tooltip",
+	"UnitMenu", "Nameplates", "Minimap", "Options" }
 
 local function start()
 	-- Each part starts on its own, so one failure does not take the rest down.

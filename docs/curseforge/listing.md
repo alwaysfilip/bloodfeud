@@ -34,7 +34,8 @@ addon has run in game: the list window, and the alert with a marked nameplate.
 ## Blood Feud
 
 Blood Feud gives your guild one shared Kill on Sight list for World of
-Warcraft: Forever. Mark an enemy player and give a reason. Every guildmate
+Warcraft: Forever, with a radar, bounties, ranks and achievements built on
+top. Mark an enemy player and give a reason. Every guildmate
 who runs the addon has the entry within seconds, and each of you is alerted
 the moment you meet that player in the world.
 
@@ -59,6 +60,14 @@ the moment you meet that player in the world.
 - **Revenge.** When the same enemy player kills you twice within 30 minutes,
   Blood Feud offers to put them on the list with one click. Both numbers can
   be changed in the options.
+- **A radar.** A small window listing the enemy players around you, the ones
+  on the list or with a bounty first.
+- **Bounties.** Put a price on an enemy player or a whole guild. Every killing
+  blow by a guildmate claims it, and the board shows who has collected.
+- **Ranks.** Your kills earn you a rank, from Recruit to Feudlord. Officers can
+  rename the ranks and move the thresholds for the whole guild.
+- **Achievements.** 31 of them, from First Blood to Clan Breaker, announced to
+  your guild when you earn them.
 
 ### How to use it
 
@@ -75,6 +84,10 @@ the moment you meet that player in the world.
 | `/feud remove Firstname-Surname` | Remove your own report |
 | `/feud guild Guild Name = reason` | List a guild (officers) |
 | `/feud score [Firstname-Surname]` | Your kills and deaths, or one enemy's score |
+| `/feud radar` | Show or hide the radar |
+| `/feud bounty [Firstname-Surname] [points] [reward]` | Post a bounty |
+| `/feud rank` | Your rank and the guild's ranks |
+| `/feud ach` | Your achievements |
 | `/feud log` | Recent changes and who sent them |
 | `/feud options` | Open the options page |
 
@@ -83,6 +96,8 @@ the moment you meet that player in the world.
 - Any member can add a player.
 - A report can be removed by the member who wrote it, or by an officer.
 - Only officers can list or unlist a guild.
+- Any member can post a bounty; its poster or an officer can take it down.
+- Only officers can change the ranks.
 
 An officer is the guild master or anyone whose rank has the officer
 permission ticked in the guild control panel.
@@ -98,7 +113,11 @@ those limits:
   player you cannot see is not detected.
 - **Kills and deaths are counted in the open world.** A kill counts when it
   was your (or your pet's) killing blow. Your killer is read from the death
-  recap.
+  recap. Ranks, bounties and achievements build on those kills.
+- **The radar is a list, not a map.** Addons cannot read where an enemy
+  stands, so it shows who the game has shown you in the last minute.
+- **Bounty gold is on trust.** The addon tracks points; any gold promised in
+  a bounty is paid by its poster.
 - **It is quiet in dungeons, raids and battlegrounds.** Addon messages are
   locked there. Changes you make inside are kept and sent when you come out,
   and changes others made are fetched then.
@@ -114,7 +133,8 @@ those limits:
 
 Blood Feud only talks on your guild's hidden addon channel. It sends the
 list entries, what it saw of a listed player (class, level and guild), your
-kill and death count against listed players, and sightings of listed players
+kill and death count against listed players, your totals, rank and
+achievements, the bounties you post and claim, and sightings of listed players
 with your zone and coordinates. Sightings can be
 turned off in the options. Nothing is sent anywhere else.
 

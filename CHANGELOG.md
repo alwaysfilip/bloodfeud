@@ -1,5 +1,21 @@
 # Blood Feud
 
+## 0.2.0
+
+- Radar: a small window listing the enemy players around you, the ones on the
+  list or with a bounty first. Shift-click to list them, right-click to post a
+  bounty. `/feud radar` to show or hide it.
+- Bounties: put a price in points (and, on trust, a promise such as "50 gold")
+  on an enemy player or a whole guild. Every killing blow by a guildmate
+  claims it. New Bounties tab, alerts and tooltip lines for players with a
+  bounty, and "Put a bounty on them" in the right-click menu.
+- Ranks: your kills earn a rank, from Recruit to Feudlord. Officers can rename
+  the ranks and move the thresholds for the guild. New Ranks tab, and your
+  guildmates' rank in their tooltip.
+- Achievements: 31 of them, announced to the guild when earned. New
+  Achievements tab.
+- Needs everyone on 0.2.0 to sync: 0.1.0 clients are told to update.
+
 ## 0.1.0
 
 First version, for World of Warcraft: Forever (1.60.1).

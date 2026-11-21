@@ -15,6 +15,10 @@ local CHECKS = {
 	{ "sightSend", L.OPT_SIGHT_SEND, L.OPT_SIGHT_SEND_TIP },
 	{ "sightShow", L.OPT_SIGHT_SHOW, L.OPT_SIGHT_SHOW_TIP },
 	{ "revenge", L.OPT_REVENGE, L.OPT_REVENGE_TIP },
+	{ "bountyAlerts", L.OPT_BOUNTY_ALERTS, L.OPT_BOUNTY_ALERTS_TIP },
+	{ "radar", L.OPT_RADAR, L.OPT_RADAR_TIP },
+	{ "radarAuto", L.OPT_RADAR_AUTO, L.OPT_RADAR_AUTO_TIP },
+	{ "radarSound", L.OPT_RADAR_SOUND, L.OPT_RADAR_SOUND_TIP },
 }
 
 local SLIDERS = {
@@ -41,6 +45,8 @@ function Options:Init()
 				ns.Nameplates:Clear()
 				ns.Detect.ScanNameplates()
 			end)
+		elseif (key == "radar" or key == "radarAuto") and setting and setting.SetValueChangedCallback then
+			setting:SetValueChangedCallback(function() ns.RadarUI:Update() end)
 		end
 	end
 	if settings.CreateSlider and settings.CreateSliderOptions then
@@ -78,6 +84,6 @@ function ns:OpenOptions()
 	if settings and settings.OpenToCategory and category and category.GetID then
 		settings.OpenToCategory(category:GetID())
 	else
-		self:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge> on|off")
+		self:Print("/feud set <option> on|off - /feud help lists the options")
 	end
 end

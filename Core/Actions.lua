@@ -47,7 +47,9 @@ function ns:AddPlayer(name, reason, info)
 		return nil
 	end
 	local now = GetServerTime()
+	local fresh = not self:MyReport("r", key)
 	local rec = s.store:Report("r", name, reason or "", s.me, nil, now)
+	if fresh and ns.Progress then ns.Progress:Bump("added") end
 	if info then
 		s.store:SetFacts(key, { guid = info.guid, cur = info.name, class = info.class, race = info.race,
 			level = info.level, guild = info.guild }, s.me, now)

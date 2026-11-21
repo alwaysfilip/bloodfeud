@@ -37,7 +37,11 @@ function Detect.Inspect(unit)
 	local _, _, raceID = UnitRace(unit)
 	info.race = plain(raceID, "number")
 	local level = plain(UnitLevel(unit), "number")
-	if level and level > 0 then info.level = level end
+	if level and level > 0 then
+		info.level = level
+	elseif level and level < 0 then
+		info.high = true -- the client hides the level of someone far above us
+	end
 	if _G.GetGuildInfo then
 		local guild = plain(_G.GetGuildInfo(unit), "string")
 		if guild and guild ~= "" then info.guild = guild end
@@ -55,7 +59,13 @@ function Detect.Match(store, info)
 		if key then return key, "guid" end
 	end
 	local first = Names.FirstKey(info.name)
-	if first and store:IsListed(first) then return first, "first" end
+	if first and store:IsListed(first) then
+		-- An entry typed with only a first name that has since been pinned to
+		-- one character does not apply to everyone who shares that first name.
+		local facts = store:Get("f:" .. first)
+		local known = facts and facts.guid
+		if not (known and info.guid and known ~= info.guid) then return first, "first" end
+	end
 	return nil
 end
 
@@ -65,17 +75,16 @@ local function handle(unit)
 	local info = Detect.Inspect(unit)
 	if not info then return end
 	if ns.Feuds then ns.Feuds:Saw(info) end
+	if ns.Radar then ns.Radar:Saw(info, unit) end
 	local store = session.store
 
-	local key, how = Detect.Match(store, info)
-	if key then
-		local subject = store:Player(key)
-		if not subject then return end
+	local key = Detect.Match(store, info)
+	local subject = key and store:Player(key)
+	if subject then
 		local known = subject.facts and subject.facts.guid
+		-- Listed by this exact name, but the entry was pinned to another
+		-- character: alert with a caveat, and leave the entry's facts alone.
 		local otherCharacter = known and info.guid and known ~= info.guid
-		-- An entry typed with only a first name that has since been pinned to
-		-- one character does not apply to everyone who shares that first name.
-		if how == "first" and otherCharacter then return end
 
 		ns.Alerts:Player(subject, info, otherCharacter)
 		if not otherCharacter then
@@ -90,11 +99,15 @@ local function handle(unit)
 		return
 	end
 
+	-- Not on the list themselves: a price on their head, their guild, or both.
+	local bounty = ns.Bounties and ns.Bounties:Line(info)
+	local alerted = false
 	if info.guild and store:IsGuildListed(info.guild) then
 		local guild = store:Guild(Util.Fold(info.guild))
-		if guild then ns.Alerts:Guild(guild, info) end
+		if guild then alerted = ns.Alerts:Guild(guild, info, bounty) end
 		ns:Fire("LISTED_GUILD_UNIT", unit, info)
 	end
+	if bounty and not alerted then ns.Alerts:Bounty(info, bounty) end
 end
 
 --- Look at a unit; safe to call for anything, at any time.

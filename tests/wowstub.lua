@@ -164,6 +164,7 @@ function Stub.Install()
 	G.UnitClass = function(token) return "Class", "ROGUE", field(token, "class") end
 	G.UnitRace = function(token) return "Race", "Orc", field(token, "race") end
 	G.UnitLevel = function(token) return field(token, "level") end
+	G.UnitIsInMyGuild = function(token) local u = unitOf(token); return u and u.guildmate or false end
 	G.UnitTokenFromGUID = function(guid)
 		for token, u in pairs(world.units) do
 			if u.guid == guid then return token end
@@ -231,7 +232,7 @@ function Stub.Install()
 		OpenToCategory = function(id) world.optionsOpened = id end,
 	}
 	G.SlashCmdList = {}
-	G.IsShiftKeyDown = function() return false end
+	G.IsShiftKeyDown = function() return world.shift or false end
 	G.IsInInstance = function() return world.instance and true or false, world.instance or "none" end
 	G.PlaySound = function(id) world.sounds = (world.sounds or 0) + 1; world.lastSound = id end
 	G.C_Map = {

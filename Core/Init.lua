@@ -20,6 +20,10 @@ local DEFAULTS = {
 	revenge = true, -- offer to list an enemy who keeps killing me
 	revengeCount = 2, -- ...after this many deaths to them
 	revengeWindow = 30, -- ...within this many minutes
+	radar = true, -- the radar window
+	radarAuto = true, -- ...shown only while enemies are around
+	radarSound = false, -- ...with a ping for each new enemy
+	bountyAlerts = true, -- alert when someone with a bounty shows up
 	debug = false,
 }
 

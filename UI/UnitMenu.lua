@@ -1,4 +1,5 @@
--- Adds "Add to Kill on Sight" to the right-click menu of an enemy player.
+-- Adds "Add to Kill on Sight" and "Put a bounty on them" to the right-click
+-- menu of an enemy player.
 local _, ns = ...
 
 local Names = ns.Names
@@ -34,6 +35,9 @@ local function build(_, root, context)
 			ns.AddDialog:Open("player", { info = info, name = name })
 		end)
 	end
+	root:CreateButton(L.MENU_BOUNTY, function()
+		ns.BountyDialog:Open({ scope = "p", name = name })
+	end)
 end
 
 function UnitMenu:Init()

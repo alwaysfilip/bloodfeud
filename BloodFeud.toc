@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Blood Feud
-## Notes: Guild-shared Kill on Sight list. Mark an enemy player and your whole guild is alerted when they meet them.
+## Notes: Guild-shared Kill on Sight list with a radar, bounties, ranks and achievements for world PvP.
 ## Author: alwaysfilip
 ## Version: @project-version@
 ## SavedVariables: BloodFeudDB
@@ -35,12 +35,19 @@ Core\Detect.lua
 Core\Sightings.lua
 Core\Actions.lua
 Core\Feuds.lua
+Core\Achievements.lua
+Core\Progress.lua
+Core\Bounties.lua
+Core\Radar.lua
 Core\Probe.lua
 
 UI\Widgets.lua
 UI\MainFrame.lua
 UI\AddDialog.lua
 UI\Revenge.lua
+UI\BountyDialog.lua
+UI\RanksDialog.lua
+UI\Radar.lua
 UI\Tooltip.lua
 UI\UnitMenu.lua
 UI\Nameplates.lua

@@ -934,3 +934,355 @@ T.test("game: an officer edits the ranks", function()
 	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
 	BloodFeudDB = keep
 end)
+
+T.test("game: gold bounties, payment by mail and trade, and dishonor", function()
+	local keep = BloodFeudDB
+	BloodFeudDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 }, { "Astrid-Vale", 1 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	noErrors(world)
+	local store, Codec, Progress, Debts = ns.session.store, ns.Codec, ns.Progress, ns.Debts
+	local ME, GOLD = "Player-1-00000001", 10000
+	local function receive(rec, sender)
+		world:Receive("BloodFeud", (Codec.EncodeUpdate(Codec.Bucket(rec.id), 1, 1, { rec.wire })), sender)
+		world:Advance(1)
+	end
+	local function enemy(first, surname, guid)
+		return { name = first, surname = surname, guid = guid, isPlayer = true, enemy = true, faction = "Horde",
+			class = 1, race = 2, level = 60 }
+	end
+	local function bountyBy(author, name, points, gold)
+		local now = GetServerTime()
+		return Codec.Seal({ k = "b", scope = "p", name = name, author = author, mby = author, ts = now, at = now,
+			points = points, gold = gold, reward = "" })
+	end
+	local function mark(bounty, role, state, author)
+		return Codec.Seal({ k = "d", scope = "p", key = bounty.key, poster = bounty.author, role = role, author = author,
+			ts = GetServerTime(), state = state })
+	end
+	local function debt(bounty) return store:Debt(store:Get(bounty.id), GetServerTime()) end
+	local function mailbox()
+		world:Fire("MAIL_SHOW")
+		world:Fire("MAIL_INBOX_UPDATE")
+		world:Advance(1)
+	end
+
+	-- A guildmate posts 50 gold on Morgash; my killing blow wins it
+	local onMorgash = bountyBy("Kari-Frost", "Morgash-Gorefist", 25, 50)
+	local chatFrom = #world.chat + 1
+	receive(onMorgash, "Kari-Frost")
+	T.ok(chatHas(world, "25 points and 50 gold to the first kill", chatFrom), "announced with its gold")
+	world.units.target = enemy("Morgash", "Gorefist", "Player-1-0000EEEE")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	T.ok(chatHas(world, "Bounty: 25 points and 50 gold", chatFrom), "the alert names the gold")
+	chatFrom = #world.chat + 1
+	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
+	world:Advance(1)
+	noErrors(world)
+	T.eq(store:Winner(store:Get(onMorgash.id)).author, "Olaf-Stormborn", "I won it")
+	T.ok(chatHas(world, "You won the bounty on Morgash Gorefist. Kari Frost owes you 50 gold", chatFrom))
+	local st = Progress:Stats()
+	T.eq(st.points, 25)
+	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
+	T.eq(st.points, 25, "a won gold bounty pays no second time")
+	T.eq(ns.Bounties:Line(ns.Detect.Inspect("target")), nil, "and is no longer a bounty to be had")
+	T.eq(debt(onMorgash).state, "owed")
+
+	-- She sends it by mail; I am told, and my mailbox confirms it
+	chatFrom = #world.chat + 1
+	receive(mark(onMorgash, "s", "s", "Kari-Frost"), "Kari-Frost")
+	T.ok(chatHas(world, "Kari Frost says the 50 gold for the bounty on Morgash Gorefist is sent", chatFrom))
+	T.eq(debt(onMorgash).state, "sent")
+	world.inbox = { { sender = "Thrall", subject = "Hello", money = 0 },
+		{ sender = "Kari Frost", subject = "Bounty", money = 50 * GOLD } }
+	chatFrom = #world.chat + 1
+	mailbox()
+	noErrors(world)
+	T.eq(debt(onMorgash).state, "paid", "the gold in the inbox closes the debt")
+	T.ok(chatHas(world, "Received 50 gold from Kari Frost", chatFrom))
+	local receipt = store:Get(Codec.MarkId("p", "morgash-gorefist", "kari-frost", "w", "olaf-stormborn"))
+	T.eq(receipt.state, "r", "my receipt is on record")
+
+	-- The same mail, still in the inbox, does not pay for a second debt
+	local onZul = bountyBy("Kari-Frost", "Zulrakka-Venomtongue", 10, 50)
+	receive(onZul, "Kari-Frost")
+	world.units.focus = enemy("Zulrakka", "Venomtongue", "Player-1-0000FFFF")
+	world:Fire("PLAYER_FOCUS_CHANGED")
+	world:Fire("PARTY_KILL", ME, "Player-1-0000FFFF")
+	world:Advance(1)
+	T.eq(debt(onZul).state, "owed")
+	mailbox()
+	T.eq(debt(onZul).state, "owed", "one mail, one debt")
+	world.inbox[#world.inbox + 1] = { sender = "Kari-Frost", subject = "Bounty", money = 50 * GOLD }
+	mailbox()
+	T.eq(debt(onZul).state, "paid", "a second mail pays the second debt")
+	T.eq(Debts.stats.unreadable, 0)
+
+	-- Now I am the poster. A slash command with gold, and Kari wins it
+	world.units.target, world.units.focus = nil, nil
+	SlashCmdList.BLOODFEUD("bounty grimtusk-bloodaxe 20 30g for the camping")
+	local mine = T.ok(store:Get(Codec.BountyId("p", "grimtusk-bloodaxe", "olaf-stormborn")))
+	T.eq(mine.points, 20)
+	T.eq(mine.gold, 30)
+	T.eq(mine.reward, "for the camping")
+	local function claimBy(bounty, who)
+		return Codec.Seal({ k = "k", scope = "p", key = bounty.key, poster = bounty.author, author = who,
+			ts = GetServerTime(), count = 1 })
+	end
+	chatFrom = #world.chat + 1
+	receive(claimBy(mine, "Kari-Frost"), "Kari-Frost")
+	T.ok(chatHas(world, "Kari Frost won your bounty on Grimtusk Bloodaxe. You owe them 30 gold", chatFrom))
+	T.eq(debt(mine).state, "owed")
+	T.ok(not ns:RemoveBounty(mine.id), "a won bounty cannot be taken down unpaid")
+	SlashCmdList.BLOODFEUD("bounty grimtusk-bloodaxe 20 1g")
+	T.eq(store:Get(mine.id).gold, 30, "nor have its gold lowered")
+	chatFrom = #world.chat + 1
+	SlashCmdList.BLOODFEUD("debts")
+	T.ok(chatHas(world, "You owe Kari Frost 30 gold for the bounty on Grimtusk Bloodaxe (47 h left)", chatFrom))
+
+	-- Too little gold in the mail does not count; the full amount does
+	_G.SetSendMailMoney(10 * GOLD)
+	_G.SendMail("Kari Frost", "part", "")
+	world:Fire("MAIL_SEND_SUCCESS")
+	T.eq(debt(mine).state, "owed")
+	chatFrom = #world.chat + 1
+	_G.SetSendMailMoney(30 * GOLD)
+	_G.SendMail("kari-frost", "bounty", "")
+	world:Fire("MAIL_SEND_SUCCESS")
+	noErrors(world)
+	T.eq(debt(mine).state, "sent", "my mail stops the clock")
+	T.ok(chatHas(world, "Payment noted: 30 gold to Kari Frost", chatFrom))
+	chatFrom = #world.chat + 1
+	receive(mark(mine, "w", "r", "Kari-Frost"), "Kari-Frost")
+	T.eq(debt(mine).state, "paid")
+	T.ok(chatHas(world, "Kari Frost has your 30 gold", chatFrom))
+	T.ok(ns:RemoveBounty(mine.id), "paid: now it can come down")
+
+	-- Paying in a trade, seen from the poster's side
+	SlashCmdList.BLOODFEUD("bounty vexara-nightfall 5 10 gold")
+	local onVex = T.ok(store:Get(Codec.BountyId("p", "vexara-nightfall", "olaf-stormborn")))
+	T.eq(onVex.gold, 10, "'10 gold' is gold too")
+	T.eq(onVex.points, 5)
+	receive(claimBy(onVex, "Kari-Frost"), "Kari-Frost")
+	world.units.NPC = { name = "Kari", surname = "Frost", guid = "Player-1-00000002", isPlayer = true, faction = "Alliance" }
+	world:Fire("TRADE_SHOW")
+	world.tradeGive, world.tradeGet = 10 * GOLD, 0
+	world:Fire("TRADE_ACCEPT_UPDATE", 1, 0)
+	world:Fire("TRADE_ACCEPT_UPDATE", 1, 1)
+	world.money = world.money - 10 * GOLD
+	world:Fire("TRADE_CLOSED")
+	world:Fire("UI_INFO_MESSAGE", 1, "Trade complete.")
+	world:Advance(3)
+	noErrors(world)
+	T.eq(debt(onVex).state, "sent", "the trade is noticed")
+	T.eq(Debts.stats.trades, 1)
+
+	-- ...and from the winner's side, where the client does not say "complete"
+	local onSyl = bountyBy("Kari-Frost", "Sylveth-Thorn", 10, 20)
+	receive(onSyl, "Kari-Frost")
+	world.units.target = enemy("Sylveth", "Thorn", "Player-1-00003333")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", ME, "Player-1-00003333")
+	world:Advance(1)
+	T.eq(debt(onSyl).state, "owed")
+	local complete = _G.ERR_TRADE_COMPLETE
+	_G.ERR_TRADE_COMPLETE = nil
+	-- a cancelled trade changes nothing
+	world:Fire("TRADE_SHOW")
+	world.tradeGive, world.tradeGet = 0, 20 * GOLD
+	world:Fire("TRADE_ACCEPT_UPDATE", 0, 1)
+	world:Fire("TRADE_CLOSED")
+	world:Advance(3)
+	T.eq(debt(onSyl).state, "owed")
+	world:Fire("TRADE_SHOW")
+	world:Fire("TRADE_ACCEPT_UPDATE", 1, 1)
+	world.money = world.money + 20 * GOLD
+	world:Fire("TRADE_CLOSED")
+	world:Fire("TRADE_CLOSED")
+	world:Advance(3)
+	_G.ERR_TRADE_COMPLETE = complete
+	noErrors(world)
+	T.eq(debt(onSyl).state, "paid", "my purse grew by what was offered: received")
+	world.units.NPC, world.units.target = nil, nil
+
+	-- The dialog takes gold, and reopens with it
+	ns.BountyDialog:Open({ scope = "p", name = "Dravok-Ashmane" })
+	ns.BountyDialog.frame.points:SetText("15")
+	ns.BountyDialog.frame.gold:SetText("75")
+	ns.BountyDialog:Submit()
+	local onDravok = T.ok(store:Get(Codec.BountyId("p", "dravok-ashmane", "olaf-stormborn")))
+	T.eq(onDravok.gold, 75)
+	ns.BountyDialog:Open({ scope = "p", name = "Dravok-Ashmane" })
+	T.eq(ns.BountyDialog.frame.gold:GetText(), "75")
+	ns.BountyDialog.frame:Hide()
+
+	-- The board: status, and the winner's buttons
+	local onGor = bountyBy("Kari-Frost", "Gorrak-Skullsplitter", 10, 40)
+	receive(onGor, "Kari-Frost")
+	world.units.target = enemy("Gorrak", "Skullsplitter", "Player-1-00002222")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", ME, "Player-1-00002222")
+	world:Advance(1)
+	world.units.target = nil
+	local main = ns.MainFrame
+	main:Show("b")
+	world:Advance(1)
+	noErrors(world)
+	local function rowOf(id)
+		for _, row in ipairs(main.frame.rows) do
+			if row:IsShown() and row.item and row.item.key == id then return row end
+		end
+	end
+	local row = T.ok(rowOf(onGor.id), "the won bounty is on the board")
+	T.ok(row.cells[3]:GetText():find("40g", 1, true), "gold column")
+	T.ok(row.cells[6]:GetText():find("Won by Olaf Stormborn", 1, true), row.cells[6]:GetText())
+	T.ok(row.cells[6]:GetText():find("owed, 47 h left", 1, true), row.cells[6]:GetText())
+	row.scripts.OnEnter(row)
+	row.scripts.OnLeave(row)
+	T.ok(rowOf(onDravok.id).cells[6]:GetText():find("first kill wins", 1, true), "an open gold bounty says so")
+	main.selected = onGor.id
+	main:UpdateActions()
+	T.ok(main.frame.edit:IsShown() and main.frame.edit:IsEnabled(), "the winner can mark it paid")
+	T.eq(main.frame.edit.label:GetText(), "Mark as paid")
+	T.ok(not main.frame.bounty:IsEnabled(), "nothing to dispute before she says it is sent")
+	T.ok(not main.frame.removeAll:IsShown(), "settling is for officers")
+	receive(mark(onGor, "s", "s", "Kari-Frost"), "Kari-Frost")
+	main:UpdateActions()
+	T.ok(main.frame.bounty:IsEnabled())
+	main.frame.bounty:Click()
+	T.eq(debt(onGor).state, "disputed", "'Not received' reopens it")
+	main:UpdateActions()
+	main.frame.edit:Click()
+	T.eq(debt(onGor).state, "paid", "'Mark as paid' closes it")
+	noErrors(world)
+
+	-- 48 hours pass. Kari never paid for Hakkar: she is Dishonored
+	local onHak = bountyBy("Kari-Frost", "Hakkar-Bloodtusk", 10, 60)
+	receive(onHak, "Kari-Frost")
+	world.units.target = enemy("Hakkar", "Bloodtusk", "Player-1-00004444")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", ME, "Player-1-00004444")
+	world:Advance(1)
+	world.units.target = nil
+	-- ...and neither did I for Dravok, whom Kari killed
+	receive(claimBy(onDravok, "Kari-Frost"), "Kari-Frost")
+	world:Advance(Debts.CHECK_EVERY + 1) -- the watch has seen both debts in time
+	T.eq(Debts:Dishonor("kari-frost"), nil)
+	chatFrom = #world.chat + 1
+	world.epoch = world.epoch + 48 * 3600 + 120
+	world:Advance(Debts.CHECK_EVERY + 1)
+	noErrors(world)
+	T.ok(debt(onHak).late and debt(onDravok).late)
+	T.ok(chatHas(world, "Kari Frost is now |cffff8a80Dishonored|r: 60 gold owed to Olaf Stormborn", chatFrom), "the guild hears of it")
+	T.ok(chatHas(world, "You are |cffff8a80Dishonored|r: the 75 gold you owe Kari Frost", chatFrom), "and so do I, of mine")
+	T.eq(Debts:Dishonor("kari-frost").gold, 60)
+	local kari, me
+	for _, m in ipairs(Progress:Roll()) do
+		if m.key == "kari-frost" then kari = m elseif m.me then me = m end
+	end
+	T.eq(kari, nil, "Kari has published no totals, so no row") -- her disgrace shows where she is shown:
+	world.units.mouseover = { name = "Kari", surname = "Frost", guid = "Player-1-00000002", isPlayer = true,
+		faction = "Alliance", class = 4, race = 1, level = 60, guildmate = true }
+	world.tooltipUnit = "mouseover"
+	GameTooltip.lines = {}
+	world.tooltipHook(GameTooltip)
+	T.ok(table.concat(GameTooltip.lines, "\n"):find("Dishonored|r (owes 60 gold to Olaf Stormborn)", 1, true), "in her tooltip")
+	T.ok(me.dishonored, "my own row is marked")
+	main:SetTab("m")
+	world:Advance(1)
+	local mineRow
+	for _, r in ipairs(main.frame.rows) do
+		if r:IsShown() and r.item and r.item.me then mineRow = r end
+	end
+	T.ok(mineRow.cells[2]:GetText():find("Dishonored", 1, true), "no rank while in disgrace")
+	T.ok(mineRow.cells[6]:GetText():find("|r", 1, true) and mineRow.cells[6]:GetText():find("0", 1, true), "bounty points count for nothing")
+	mineRow.scripts.OnEnter(mineRow)
+	mineRow.scripts.OnLeave(mineRow)
+	chatFrom = #world.chat + 1
+	SlashCmdList.BLOODFEUD("bounty someone-else 5")
+	T.eq(store:Get(Codec.BountyId("p", "someone-else", "olaf-stormborn")), nil, "no new bounties while Dishonored")
+	T.ok(chatHas(world, "pay the 75 gold you owe Kari Frost", chatFrom))
+	noErrors(world)
+
+	-- Paying, even late, clears my name
+	_G.SetSendMailMoney(75 * GOLD)
+	_G.SendMail("Kari Frost", "sorry", "")
+	world:Fire("MAIL_SEND_SUCCESS")
+	T.eq(debt(onDravok).state, "sent")
+	T.eq(Debts:Dishonor("olaf-stormborn"), nil, "paid up: no longer Dishonored")
+	SlashCmdList.BLOODFEUD("bounty someone-else 5")
+	T.ok(store:Get(Codec.BountyId("p", "someone-else", "olaf-stormborn")), "and bounties can be posted again")
+
+	-- An officer settles Kari's debt: her name is cleared too
+	chatFrom = #world.chat + 1
+	receive(mark(onHak, "o", "o", "Astrid-Vale"), "Astrid-Vale")
+	T.eq(debt(onHak).state, "settled")
+	T.eq(Debts:Dishonor("kari-frost"), nil)
+	T.ok(chatHas(world, "Astrid Vale settled the debt for the bounty on Hakkar Bloodtusk", chatFrom))
+	-- A member's attempt to settle is refused
+	local onLast = bountyBy("Kari-Frost", "Morgash-Gorefist", 5, 5)
+	receive(Codec.Seal({ k = "B", scope = "p", name = "Morgash-Gorefist", author = "Kari-Frost", mby = "Kari-Frost",
+		ts = GetServerTime(), del = true }), "Kari-Frost")
+	onLast.ts = GetServerTime() + 1
+	onLast.at = onLast.ts
+	receive(Codec.Seal(onLast), "Kari-Frost")
+	world.units.target = enemy("Morgash", "Gorefist", "Player-1-0000EEEE")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
+	world:Advance(1)
+	T.eq(debt(onLast).state, "owed", "posted again after being paid: a fresh debt")
+	receive(mark(onLast, "o", "o", "Kari-Frost"), "Kari-Frost")
+	T.eq(debt(onLast).state, "owed", "the debtor cannot settle her own debt")
+	T.eq(ns:SettleDebt(onLast.id, true), nil, "nor can I, as a member")
+	noErrors(world)
+	BloodFeudDB = keep
+end)
+
+T.test("game: an officer settles a debt from the board", function()
+	local keep = BloodFeudDB
+	BloodFeudDB = nil
+	local world = Stub.Install()
+	world.myRank = 1
+	world.roster = { { "Olaf-Stormborn", 1 }, { "Kari-Frost", 5 }, { "Per-Hauk", 5 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	local store, Codec = ns.session.store, ns.Codec
+	local now = GetServerTime()
+	local function receive(rec, sender)
+		world:Receive("BloodFeud", (Codec.EncodeUpdate(Codec.Bucket(rec.id), 1, 1, { rec.wire })), sender)
+		world:Advance(1)
+	end
+	local b = Codec.Seal({ k = "b", scope = "p", name = "Grimtusk-Bloodaxe", author = "Kari-Frost", mby = "Kari-Frost",
+		ts = now, at = now, points = 10, gold = 50, reward = "" })
+	receive(b, "Kari-Frost")
+	receive(Codec.Seal({ k = "k", scope = "p", key = b.key, poster = b.author, author = "Per-Hauk", ts = now + 2,
+		count = 1 }), "Per-Hauk")
+	local main = ns.MainFrame
+	main:Show("b")
+	world:Advance(1)
+	main.selected = b.id
+	main:UpdateActions()
+	T.ok(not main.frame.edit:IsShown(), "neither poster nor winner: no say of my own")
+	T.ok(main.frame.removeAll:IsShown() and main.frame.removeAll:IsEnabled(), "but an officer can settle")
+	T.eq(main.frame.removeAll.label:GetText(), "Settle the debt (officer)")
+	main.frame.removeAll:Click()
+	T.eq(store:Debt(store:Get(b.id), GetServerTime()).state, "settled")
+	main:UpdateActions()
+	T.ok(not main.frame.removeAll:IsEnabled(), "nothing left to settle")
+	-- An officer can also take a won, unpaid bounty down, which cancels the debt
+	local b2 = Codec.Seal({ k = "b", scope = "p", name = "Vexara-Nightfall", author = "Kari-Frost", mby = "Kari-Frost",
+		ts = now, at = now, points = 10, gold = 5, reward = "" })
+	receive(b2, "Kari-Frost")
+	receive(Codec.Seal({ k = "k", scope = "p", key = b2.key, poster = b2.author, author = "Per-Hauk", ts = now + 2,
+		count = 1 }), "Per-Hauk")
+	T.ok(ns:RemoveBounty(b2.id))
+	T.eq(#store:Debts(GetServerTime()), 1, "only the settled one is left")
+	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
+	BloodFeudDB = keep
+end)

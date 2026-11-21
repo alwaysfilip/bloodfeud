@@ -29,9 +29,14 @@ that player themselves.
 - **Radar.** A small window listing the enemy players around you, the ones on
   the list or with a bounty first. Shift-click to list them, right-click to
   post a bounty.
-- **Bounties.** Anyone can put a price on an enemy player or a whole guild,
-  in points plus an optional promise such as "50 gold". Every killing blow by
-  a guildmate claims it, and the board shows who has collected.
+- **Bounties.** Anyone can put a price on an enemy player or a whole guild.
+  Points go to every guildmate who lands a killing blow, and the board shows
+  who has collected.
+- **Gold bounties.** A bounty can also carry gold, which goes to the first
+  kill. Its poster then has 48 hours to send the gold by mail or trade. Blood
+  Feud notices the gold leave and arrive by itself. Whoever has not paid in
+  time is **Dishonored**: no rank, no bounty points and no new bounties until
+  the debt is paid.
 - **Ranks.** Your kills earn you a rank, from Recruit to Feudlord. Officers can
   rename the ranks and move the thresholds for the whole guild. Guildmates see
   each other's rank in the Ranks tab and in tooltips.
@@ -49,10 +54,11 @@ that player themselves.
 | `/feud guild Guild Name = reason` | List a guild (officers) |
 | `/feud score [Firstname-Surname]` | Your kills and deaths, or one enemy's score |
 | `/feud radar` | Show or hide the radar |
-| `/feud bounty [points] [reward]` | Post a bounty on your target |
-| `/feud bounty Firstname-Surname [points] [reward]` | Post a bounty by name (with no enemy targeted) |
-| `/feud bounty <Guild Name> [points] [reward]` | Post a bounty on a guild |
+| `/feud bounty [points] [50g] [note]` | Post a bounty on your target; `50g` puts 50 gold on it |
+| `/feud bounty Firstname-Surname [points] [50g] [note]` | Post a bounty by name (with no enemy targeted) |
+| `/feud bounty <Guild Name> [points] [50g] [note]` | Post a bounty on a guild |
 | `/feud bounties` | Open the bounty board |
+| `/feud debts` | Bounty gold you owe and are owed |
 | `/feud rank` | Your rank, and the guild's ranks |
 | `/feud rank set <n> <kills> <title>` | Change a rank (officers) |
 | `/feud ach` | Your achievements |
@@ -66,7 +72,10 @@ that player themselves.
 - A report can be removed by the member who wrote it, or by an officer.
 - Only officers can list or unlist a guild.
 - Any member can post a bounty. It can be taken down by its poster or an
-  officer.
+  officer. A gold bounty that has been won can only be taken down by its
+  poster once the gold is paid.
+- On the gold of a won bounty, the poster can say it is sent, the winner can
+  say it arrived or did not, and an officer can settle it either way.
 - Only officers can change the ranks.
 - Only you can write your own totals, achievements and bounty claims.
 
@@ -95,8 +104,13 @@ works within them rather than around them:
 - **The radar is a list, not a map.** Addons cannot read where an enemy
   stands, so the radar shows who the game has shown you in the last minute,
   not their position.
-- **Bounty gold is on trust.** An addon cannot move gold. The points are what
-  Blood Feud tracks; anything promised in the reward text is up to the poster.
+- **Blood Feud cannot move gold, only watch it.** The poster of a won gold
+  bounty pays by ordinary mail or trade. The addon sees the gold leave on the
+  poster's side, which stops the 48-hour clock, and sees it arrive on the
+  winner's side, which closes the debt. Incoming mail can only be read while
+  you stand at a mailbox, so a payment by mail is confirmed the next time the
+  winner opens theirs. The winner can also confirm by hand, or say the gold
+  never came, and an officer can settle a dispute.
 
 ## An honest note on permissions
 
@@ -113,9 +127,13 @@ always undo it.
 Blood Feud only talks on your guild's hidden addon channel. It sends the
 list entries, what it saw of a listed player (class, level, guild), your
 kill and death count against listed players, your total kills, deaths, best
-streak, bounty points and achievements, the bounties you post and claim, and
-sightings of listed players with your zone and coordinates. Sightings can be
-turned off in the options. Nothing is sent anywhere else.
+streak, bounty points and achievements, the bounties you post and claim,
+whether the gold of a won bounty was sent and received, and sightings of
+listed players with your zone and coordinates. Sightings can be turned off in
+the options. Nothing is sent anywhere else. To notice a bounty being paid,
+the addon looks at who your mail and trades are with and how much gold is in
+them; that stays on your computer, and only "sent" or "received" for the
+bounty in question is shared.
 
 ## Development
 

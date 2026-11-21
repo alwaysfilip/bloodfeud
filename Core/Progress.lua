@@ -357,16 +357,20 @@ local function announce(rec, old)
 end
 
 --- Everyone the guild knows about, with rank: list of
---- { key, name, kills, deaths, best, points, ach, rank, me }.
+--- { key, name, kills, deaths, best, points, ach, rank, me, dishonored }.
 function Progress:Roll()
 	local s = ns.session
 	if not s then return {} end
 	local ladder = Progress.Ladder(s.store)
+	local disgrace = s.store:Dishonor(GetServerTime())
 	local out = {}
 	local function add(key, name, t, ts, me)
 		out[#out + 1] = {
 			key = key, name = name, kills = t.kills, deaths = t.deaths, best = t.best, points = t.points, ach = t.ach,
 			rank = Progress.RankFor(t.kills, ladder), me = me, ts = ts,
+			-- An unpaid bounty debt past its deadline: no rank and no bounty
+			-- points to show for as long as it stands.
+			dishonored = disgrace[key],
 		}
 	end
 	local members = s.store:Members()

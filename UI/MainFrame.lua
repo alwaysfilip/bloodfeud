@@ -48,6 +48,27 @@ local function bountyTarget(rec)
 	return Names.Display(rec.name)
 end
 
+local GREEN = "ff8fd18f"
+
+--- Where the gold of a won bounty stands: "Kari Frost · owed, 36 h left".
+local function debtStatus(debt, now)
+	local text
+	if debt.state == "paid" then
+		text = Fmt.Color(GREEN, L.DEBT_PAID)
+	elseif debt.state == "settled" then
+		text = grey(L.DEBT_SETTLED)
+	elseif debt.state == "sent" then
+		text = Fmt.Color(Fmt.GOLD, L.DEBT_SENT)
+	elseif debt.late then
+		text = Fmt.Color(Fmt.RED, L.DEBT_LATE)
+	elseif debt.state == "disputed" then
+		text = Fmt.Color(Fmt.AMBER, L.DEBT_DISPUTED:format(ns.Debts.Left(debt, now)))
+	else
+		text = Fmt.Color(Fmt.AMBER, L.DEBT_OWED:format(ns.Debts.Left(debt, now)))
+	end
+	return L.DEBT_WON_BY:format(Names.Display(debt.winner)) .. " · " .. text
+end
+
 ---------------------------------------------------------------------------
 -- Tabs
 ---------------------------------------------------------------------------
@@ -137,10 +158,11 @@ TABS.g = {
 TABS.b = {
 	label = L.TAB_BOUNTIES,
 	columns = {
-		{ title = L.COL_TARGET, w = 200 }, { title = L.COL_POINTS, w = 60 }, { title = L.COL_REWARD, w = 180 },
-		{ title = L.COL_POSTED_BY, w = 130 }, { title = L.COL_CLAIMS, w = 220 }, { title = L.COL_POSTED, w = 110 },
+		{ title = L.COL_TARGET, w = 190 }, { title = L.COL_POINTS, w = 54 }, { title = L.COL_GOLD, w = 60 },
+		{ title = L.COL_REWARD, w = 140 }, { title = L.COL_POSTED_BY, w = 120 }, { title = L.COL_CLAIMS, w = 250 },
+		{ title = L.COL_POSTED, w = 90 },
 	},
-	items = function(s) return s.store:Bounties() end,
+	items = function(s) return s.store:Bounties(nil, nil, GetServerTime()) end,
 	matches = function(view, q)
 		local rec = view.rec
 		if contains(q, rec.name, rec.reward, rec.author) then return true end
@@ -151,8 +173,11 @@ TABS.b = {
 	end,
 	cells = function(view)
 		local rec = view.rec
-		local claims = grey(L.NO_CLAIMS)
-		if view.total > 0 then
+		local gold = rec.gold or 0
+		local claims = grey(gold > 0 and L.BOUNTY_OPEN or L.NO_CLAIMS)
+		if view.debt then
+			claims = debtStatus(view.debt, GetServerTime())
+		elseif view.total > 0 then
 			local parts = {}
 			for i = 1, math.min(#view.claims, 3) do
 				parts[#parts + 1] = Names.Display(view.claims[i].author) .. " " .. view.claims[i].count
@@ -160,8 +185,9 @@ TABS.b = {
 			claims = view.total .. "  " .. grey(table.concat(parts, ", "))
 		end
 		return {
-			bountyTarget(rec), Fmt.Color(Fmt.GOLD, tostring(rec.points)), rec.reward ~= "" and rec.reward or grey("–"),
-			Names.Display(rec.author), claims, Fmt.Ago(rec.at),
+			bountyTarget(rec), Fmt.Color(Fmt.GOLD, tostring(rec.points)),
+			gold > 0 and Fmt.Color(Fmt.GOLD, L.GOLD_SHORT:format(gold)) or grey("–"),
+			rec.reward ~= "" and rec.reward or grey("–"), Names.Display(rec.author), claims, Fmt.Ago(rec.at),
 		}
 	end,
 	notice = L.BOUNTY_NOTICE,
@@ -178,13 +204,20 @@ TABS.m = {
 		{ title = L.COL_ACHIEVEMENTS, w = 120 },
 	},
 	items = function() return ns.Progress:Roll() end,
-	matches = function(m, q) return contains(q, m.name, m.rank and m.rank.title) end,
+	matches = function(m, q)
+		return contains(q, m.name, m.rank and m.rank.title, m.dishonored and L.DISHONORED)
+	end,
 	cells = function(m)
 		local name = Names.Display(m.name)
 		if m.me then name = Fmt.Color(Fmt.GOLD, name) end
+		local rank, points = m.rank and m.rank.title or grey(L.UNRANKED), tostring(m.points)
+		if m.dishonored then
+			-- An unpaid bounty: no rank, and the bounty points count for nothing.
+			rank, points = Fmt.Color(Fmt.RED, L.DISHONORED), Fmt.Color(Fmt.RED, "0")
+		end
 		return {
-			name, m.rank and m.rank.title or grey(L.UNRANKED), tostring(m.kills), tostring(m.deaths), tostring(m.best),
-			tostring(m.points), tostring(ns.Progress.CountBits(m.ach)) .. grey(" / " .. #ns.Achievements),
+			name, rank, tostring(m.kills), tostring(m.deaths), tostring(m.best), points,
+			tostring(ns.Progress.CountBits(m.ach)) .. grey(" / " .. #ns.Achievements),
 		}
 	end,
 	notice = function()
@@ -282,9 +315,16 @@ local function tipBounty(view)
 	local rec = view.rec
 	GameTooltip:AddLine(bountyTarget(rec))
 	GameTooltip:AddLine(L.BOUNTY_WORTH:format(rec.points), 0.94, 0.78, 0.37)
+	if (rec.gold or 0) > 0 then GameTooltip:AddLine(L.BOUNTY_GOLD_FIRST:format(rec.gold), 0.94, 0.78, 0.37, true) end
 	if rec.reward ~= "" then GameTooltip:AddLine(L.BOUNTY_PROMISED:format(rec.reward), 1, 1, 1, true) end
 	GameTooltip:AddLine(L.TIP_BY:format(Names.Display(rec.author), Fmt.Ago(rec.at)), 0.66, 0.65, 0.61)
-	if #view.claims > 0 then
+	local debt = view.debt
+	if debt then
+		GameTooltip:AddLine(" ")
+		GameTooltip:AddLine(debtStatus(debt, GetServerTime()), 1, 1, 1, true)
+		GameTooltip:AddLine(L.DEBT_WON_AT:format(Fmt.Ago(debt.at)), 0.66, 0.65, 0.61)
+		if debt.open then GameTooltip:AddLine(L.DEBT_HOW, 0.66, 0.65, 0.61, true) end
+	elseif #view.claims > 0 then
 		GameTooltip:AddLine(" ")
 		for i = 1, math.min(#view.claims, 10) do
 			local c = view.claims[i]
@@ -295,6 +335,9 @@ end
 
 local function tipMember(m)
 	GameTooltip:AddLine(Names.Display(m.name))
+	if m.dishonored then
+		GameTooltip:AddLine(L.TIP_DISHONORED:format(m.dishonored.gold, Names.Display(m.dishonored.winner)), 1, 0.54, 0.5, true)
+	end
 	GameTooltip:AddLine(m.rank and m.rank.title or L.UNRANKED, 0.94, 0.78, 0.37)
 	GameTooltip:AddLine(L.MEMBER_LINE:format(m.kills, m.deaths, m.best, m.points), 1, 1, 1)
 	local earned = {}
@@ -500,18 +543,13 @@ function Main:Build()
 	f.removeMine:SetScript("OnClick", function() Main:OnRemoveMine() end)
 	f.edit = W.Button(f, L.EDIT, 110, 26)
 	f.edit:SetPoint("LEFT", f.removeMine, "RIGHT", 6, 0)
-	f.edit:SetScript("OnClick", function()
-		local mine = Main.selected and ns:MyReport(Main.tab, Main.selected)
-		if mine then ns.AddDialog:Open("edit", { kind = mine.k, name = mine.name, reason = mine.reason }) end
-	end)
+	f.edit:SetScript("OnClick", function() Main:OnEdit() end)
 	f.bounty = W.Button(f, L.POST_BOUNTY, 130, 26)
 	f.bounty:SetPoint("LEFT", f.edit, "RIGHT", 6, 0)
 	f.bounty:SetScript("OnClick", function() Main:OnBounty() end)
 	f.removeAll = W.Button(f, L.REMOVE_ALL, 210, 26, "danger")
 	f.removeAll:SetPoint("LEFT", f.bounty, "RIGHT", 6, 0)
-	f.removeAll:SetScript("OnClick", function()
-		if Main.selected and ns:RemoveAll(Main.tab, Main.selected) then Main.selected = nil end
-	end)
+	f.removeAll:SetScript("OnClick", function() Main:OnRemoveAll() end)
 
 	-- Footer
 	local foot = f:CreateTexture(nil, "ARTWORK")
@@ -674,18 +712,35 @@ function Main:UpdateActions()
 	local mine = list and self.selected and ns:MyReport(tab, self.selected)
 
 	f.removeMine:SetShown(list or tab == "b")
-	f.edit:SetShown(list)
-	f.bounty:SetShown(list)
-	f.removeAll:SetShown(list and officer)
-	f.removeAll:SetEnabled(self.selected ~= nil)
-	f.edit:SetEnabled(mine and true or false)
-	f.bounty:SetEnabled(self.selected ~= nil)
-
 	if tab == "b" then
+		-- The bounty board: take a bounty down, and for a won gold bounty the
+		-- say of the two it concerns and of the officers.
 		local rec = self.selected and session and session.store:Get(self.selected)
+		local live = rec and not rec.del and rec.k == "b"
+		local debt = live and session.store:Debt(rec, GetServerTime()) or nil
+		local poster = live and rec.akey == session.meKey
+		local winner = debt ~= nil and debt.wkey == session.meKey
 		f.removeMine:SetLabel(officer and L.REMOVE_BOUNTY_ANY or L.REMOVE_BOUNTY)
-		f.removeMine:SetEnabled(rec and not rec.del and (rec.akey == session.meKey or officer) or false)
+		f.removeMine:SetEnabled(live and (officer or (poster and not (debt and debt.open))) or false)
+		f.edit:SetShown(debt ~= nil and (winner or poster))
+		f.edit:SetLabel(winner and L.DEBT_MARK_PAID or L.DEBT_MARK_SENT)
+		f.edit:SetEnabled(debt ~= nil and ((winner and debt.open) or (poster and not winner and debt.state == "owed")))
+		f.bounty:SetShown(winner)
+		f.bounty:SetLabel(L.DEBT_NOT_RECEIVED)
+		f.bounty:SetEnabled(winner and debt.state == "sent")
+		f.removeAll:SetShown(officer and debt ~= nil)
+		f.removeAll:SetLabel(L.DEBT_SETTLE)
+		f.removeAll:SetEnabled(debt ~= nil and debt.open)
 	else
+		f.edit:SetShown(list)
+		f.edit:SetLabel(L.EDIT)
+		f.edit:SetEnabled(mine and true or false)
+		f.bounty:SetShown(list)
+		f.bounty:SetLabel(L.POST_BOUNTY)
+		f.bounty:SetEnabled(self.selected ~= nil)
+		f.removeAll:SetShown(list and officer)
+		f.removeAll:SetLabel(L.REMOVE_ALL)
+		f.removeAll:SetEnabled(self.selected ~= nil)
 		f.removeMine:SetLabel(L.REMOVE_MINE)
 		f.removeMine:SetEnabled(mine and true or false)
 	end
@@ -767,10 +822,44 @@ function Main:OnRemoveMine()
 	end
 end
 
---- Post a bounty on the selected player or guild.
+--- The second button: edit my reason, or have my say on a won bounty's gold.
+function Main:OnEdit()
+	local s = ns.session
+	if not s or not self.selected then return end
+	if self.tab == "b" then
+		local rec = s.store:Get(self.selected)
+		local debt = rec and s.store:Debt(rec, GetServerTime())
+		if not debt then return end
+		if debt.wkey == s.meKey then
+			ns:MarkReceived(self.selected, "r")
+		elseif debt.pkey == s.meKey then
+			ns:MarkSent(self.selected, true)
+		end
+		return
+	end
+	local mine = ns:MyReport(self.tab, self.selected)
+	if mine then ns.AddDialog:Open("edit", { kind = mine.k, name = mine.name, reason = mine.reason }) end
+end
+
+--- The officers' button: remove every report, or settle a bounty debt.
+function Main:OnRemoveAll()
+	if not self.selected then return end
+	if self.tab == "b" then
+		ns:SettleDebt(self.selected, true)
+	elseif ns:RemoveAll(self.tab, self.selected) then
+		self.selected = nil
+	end
+end
+
+--- Post a bounty on the selected player or guild; on the bounty board, the
+--- winner saying the gold never arrived.
 function Main:OnBounty()
 	local s = ns.session
 	if not s or not self.selected then return end
+	if self.tab == "b" then
+		ns:MarkReceived(self.selected, "x")
+		return
+	end
 	local subject = self.tab == "g" and s.store:Guild(self.selected) or s.store:Player(self.selected)
 	if not subject then return end
 	ns.BountyDialog:Open({ scope = self.tab == "g" and "g" or "p", name = subject.name })

@@ -38,6 +38,7 @@ Core\Feuds.lua
 Core\Achievements.lua
 Core\Progress.lua
 Core\Bounties.lua
+Core\Debts.lua
 Core\Radar.lua
 Core\Probe.lua
 

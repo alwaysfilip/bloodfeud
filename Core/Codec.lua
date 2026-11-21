@@ -13,13 +13,20 @@
 --   m  author ~ ts ~ kills ~ deaths ~ best ~ points ~ achievements
 --                                                 a guildmate's own totals
 --   t  n ~ ts ~ mby ~ kills ~ title               rank tier n (officers)
---   b  name ~ author ~ ts ~ mby ~ at ~ scope ~ points ~ reward
+--   b  name ~ author ~ ts ~ mby ~ at ~ scope ~ points ~ gold ~ reward
 --                                                 bounty on a player or guild
 --   B  name ~ author ~ ts ~ mby ~ scope           bounty, removed
 --   k  scope ~ target ~ poster ~ author ~ ts ~ count
 --                                                 author's claims on a bounty
+--   d  scope ~ target ~ poster ~ role ~ author ~ ts ~ state
+--                                                 a mark on the gold debt of a
+--                                                 won bounty (see below)
 -- `mby` (last modifier) is left empty when it equals the author. A bounty's
 -- scope is "p" (player) or "g" (guild).
+--
+-- Debt marks, by role: "s" the poster says the gold is sent (state "s", or
+-- "n" for no longer); "w" the winner says it arrived ("r"), did not ("x"), or
+-- takes that back ("n"); "o" an officer settles the matter ("o", or "n").
 --
 -- Frames:
 --   H <proto> <count:3> <root:6> <flags:1> <64 bucket digests, 3 chars each>
@@ -35,7 +42,7 @@ local concat = table.concat
 local Codec = {}
 ns.Codec = Codec
 
-Codec.PROTO = 2 -- 2: members, rank tiers, bounties and claims (0.2.0)
+Codec.PROTO = 3 -- 2: members, rank tiers, bounties, claims (0.2.0); 3: gold bounties, debt marks (0.3.0)
 Codec.BUCKETS = 64
 Codec.DIGEST_MOD = 262144 -- 18 bits = 3 base-64 digits
 Codec.MAX_FRAME = 255
@@ -47,6 +54,7 @@ Codec.MAX_SCORE = 999999
 Codec.MAX_TITLE = 32
 Codec.MAX_REWARD = 40
 Codec.MAX_POINTS = 100 -- per bounty claim
+Codec.MAX_GOLD = 999999 -- whole gold pieces promised to the first kill
 Codec.MAX_TIERS = 12
 Codec.MAX_ACHIEVEMENTS = 48 -- bits in one 8-digit number
 Codec.UPDATE_HEADER = 12
@@ -122,6 +130,17 @@ function Codec.ClaimId(scope, key, pkey, akey)
 	return "k:" .. scope .. key .. "/" .. pkey .. "/" .. akey
 end
 
+--- The id of a debt mark. The winner's mark is per author, so that only the
+--- real winner's word can be picked out; the other two have one writer or
+--- one office.
+function Codec.MarkId(scope, key, pkey, role, akey)
+	local id = "d:" .. scope .. key .. "/" .. pkey .. "/" .. role
+	if role == "w" then id = id .. "/" .. akey end
+	return id
+end
+
+local MARK_STATES = { s = { s = true, n = true }, w = { r = true, x = true, n = true }, o = { o = true, n = true } }
+
 --- Fill in the derived fields (keys, id) of a record table and return it.
 function Codec.Normalize(rec)
 	local k = rec.k
@@ -149,6 +168,12 @@ function Codec.Normalize(rec)
 		rec.mby = rec.author
 		rec.bid = Codec.BountyId(rec.scope, rec.key, rec.pkey)
 		rec.id = Codec.ClaimId(rec.scope, rec.key, rec.pkey, rec.akey)
+	elseif k == "d" then
+		rec.pkey = Fold(rec.poster)
+		rec.akey = Fold(rec.author)
+		rec.mby = rec.author
+		rec.bid = Codec.BountyId(rec.scope, rec.key, rec.pkey)
+		rec.id = Codec.MarkId(rec.scope, rec.key, rec.pkey, rec.role, rec.akey)
 	else
 		rec.key = Fold(rec.name)
 		rec.akey = Fold(rec.author)
@@ -181,13 +206,17 @@ function Codec.EncodeRecord(rec)
 		return concat({ "k" .. rec.scope, esc(rec.key), esc(rec.poster), esc(rec.author), Enc(rec.ts), Enc(rec.count) },
 			"~")
 	end
+	if k == "d" then
+		return concat({ "d" .. rec.scope, esc(rec.key), esc(rec.poster), rec.role, esc(rec.author), Enc(rec.ts),
+			rec.state }, "~")
+	end
 	local mby = rec.mby == rec.author and "" or esc(rec.mby)
 	if k == "b" then
 		if rec.del then
 			return concat({ "B" .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby, rec.scope }, "~")
 		end
 		return concat({ "b" .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby, Enc(rec.at), rec.scope,
-			Enc(rec.points), esc(rec.reward or "") }, "~")
+			Enc(rec.points), Enc(rec.gold or 0), esc(rec.reward or "") }, "~")
 	end
 	if rec.del then
 		return concat({ (k == "r" and "R" or "G") .. esc(rec.name), esc(rec.author), Enc(rec.ts), mby }, "~")
@@ -296,15 +325,33 @@ function Codec.DecodeRecord(text)
 		return seal(rec, text)
 	end
 
+	if kind == "d" then
+		if n ~= 7 then return nil end
+		local rec = { k = "d", scope = parts[1], key = parts[2], poster = parts[3], role = parts[4], author = parts[5],
+			ts = Dec(parts[6]), state = parts[7] }
+		if rec.scope ~= "p" and rec.scope ~= "g" then return nil end
+		if not rec.ts or rec.ts <= 0 then return nil end
+		local states = MARK_STATES[rec.role]
+		if not states or not states[rec.state] then return nil end
+		local keyMax = rec.scope == "g" and Codec.MAX_GUILD or Codec.MAX_NAME
+		if not cleanName(rec.key, keyMax) or Fold(rec.key) ~= rec.key then return nil end
+		if not cleanName(rec.poster, Codec.MAX_NAME) or not cleanName(rec.author, Codec.MAX_NAME) then return nil end
+		-- "Sent" is the poster's own word and nobody else's.
+		if rec.role == "s" and Fold(rec.author) ~= Fold(rec.poster) then return nil end
+		return seal(rec, text)
+	end
+
 	if kind == "b" or kind == "B" then
 		local del = kind == "B"
-		if n ~= (del and 5 or 8) then return nil end
+		if n ~= (del and 5 or 9) then return nil end
 		local rec = { k = "b", name = parts[1], author = parts[2], ts = Dec(parts[3]) }
 		if del then
 			rec.del, rec.scope = true, parts[5]
 		else
-			rec.at, rec.scope, rec.points, rec.reward = Dec(parts[5]), parts[6], Dec(parts[7]), parts[8]
+			rec.at, rec.scope, rec.points, rec.gold, rec.reward = Dec(parts[5]), parts[6], Dec(parts[7]), Dec(parts[8]),
+				parts[9]
 			if not rec.at or not rec.points or rec.points < 1 or rec.points > Codec.MAX_POINTS then return nil end
+			if not rec.gold or rec.gold > Codec.MAX_GOLD then return nil end
 			if not Util.IsClean(rec.reward, Codec.MAX_REWARD) then return nil end
 		end
 		if rec.scope ~= "p" and rec.scope ~= "g" then return nil end

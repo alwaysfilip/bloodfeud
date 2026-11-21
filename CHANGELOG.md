@@ -1,5 +1,23 @@
 # Blood Feud
 
+## 0.3.0
+
+- Gold bounties: a bounty can carry gold, which goes to the first guildmate
+  to land the killing blow. Its poster then has 48 hours to send the gold by
+  mail or trade.
+- Payment is noticed without anyone clicking: the poster's side sees the gold
+  leave (which stops the clock), the winner's side sees it arrive in the
+  mailbox or in a trade (which closes the debt). The winner can also mark it
+  paid by hand or say it never came, and an officer can settle a dispute.
+- Dishonored: whoever has not paid in time loses their rank and bounty points
+  in the Ranks tab and in tooltips, and cannot post new bounties, until the
+  debt is paid.
+- The bounty board shows the gold and where each debt stands. `/feud bounty`
+  takes gold as `50g`, and `/feud debts` lists what you owe and are owed.
+- Needs everyone on 0.3.0 to sync. Bounties posted with 0.2.0 have to be
+  posted again.
+- The file on CurseForge is now named `BloodFeud-v0.3.0`.
+
 ## 0.2.0
 
 - Radar: a small window listing the enemy players around you, the ones on the

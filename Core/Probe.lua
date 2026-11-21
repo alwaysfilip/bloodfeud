@@ -210,6 +210,37 @@ local function collect(add)
 	end
 
 	add("")
+	add("== mail and trade (bounty gold) ==")
+	local debts = ns.Debts
+	local function kinds(names)
+		local parts = {}
+		for _, name in ipairs(names) do parts[#parts + 1] = name .. "=" .. type(_G[name]) end
+		return table.concat(parts, " ")
+	end
+	add("mail: " .. kinds({ "GetInboxNumItems", "GetInboxHeaderInfo", "SendMail", "SetSendMailMoney", "GetSendMailMoney",
+		"hooksecurefunc" }))
+	add("trade: " .. kinds({ "GetPlayerTradeMoney", "GetTargetTradeMoney", "GetMoney" }) .. "  ERR_TRADE_COMPLETE="
+		.. type(_G.ERR_TRADE_COMPLETE))
+	local events = {}
+	for _, name in ipairs({ "MAIL_SHOW", "MAIL_INBOX_UPDATE", "MAIL_SEND_SUCCESS", "TRADE_SHOW", "TRADE_ACCEPT_UPDATE",
+		"TRADE_CLOSED", "UI_INFO_MESSAGE" }) do
+		events[#events + 1] = name .. "=" .. show(debts.events[name])
+	end
+	add("events registered: " .. table.concat(events, " "))
+	local ds = debts.stats
+	add(("this session: inbox scans %d, mails with gold read %d, senders unreadable %d, gold mails sent %d, trades %d")
+		:format(ds.scans, ds.mails, ds.unreadable, ds.sends, ds.trades))
+	-- With the mailbox open, what one inbox line looks like to an addon.
+	if _G.GetInboxNumItems and _G.GetInboxHeaderInfo then
+		local okCount, count = try(_G.GetInboxNumItems)
+		add("inbox now: " .. show(okCount and count) .. " mails (0 unless a mailbox is open)")
+		if okCount and type(count) == "number" and count > 0 then
+			local okMail, _, _, sender, _, money = try(_G.GetInboxHeaderInfo, 1)
+			add("  first mail: sender " .. (okMail and mask(sender) or "error") .. ", money " .. show(okMail and money))
+		end
+	end
+
+	add("")
 	add("== interface APIs ==")
 	add("Menu.ModifyMenu: " .. type(_G.Menu and _G.Menu.ModifyMenu))
 	add("TooltipDataProcessor.AddTooltipPostCall: " .. type(_G.TooltipDataProcessor and _G.TooltipDataProcessor.AddTooltipPostCall))

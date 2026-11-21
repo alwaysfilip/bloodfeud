@@ -83,6 +83,10 @@ local function announce(rec, sender, _, direct)
 		if ns.Bounties then ns.Bounties.Announce(rec, sender) end
 		return
 	end
+	if rec.k == "d" then
+		if ns.Debts then ns.Debts.Announce(rec, sender) end
+		return
+	end
 	if rec.k ~= "r" and rec.k ~= "g" then return end
 	local now = GetServerTime()
 	if now - rec.ts > 120 then return end
@@ -99,7 +103,7 @@ local function denied(rec, sender)
 	local subject
 	if rec.k == "t" then
 		subject = L.RANK_LADDER
-	elseif rec.k == "m" or rec.k == "k" or rec.k == "c" then
+	elseif rec.k == "m" or rec.k == "k" or rec.k == "c" or rec.k == "d" then
 		subject = Names.Display(rec.author)
 	else
 		subject = (rec.k == "g" or rec.scope == "g") and ("<" .. rec.name .. ">") or Names.Display(rec.name)

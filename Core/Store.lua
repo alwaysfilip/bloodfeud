@@ -11,6 +11,9 @@
 --   tiers    the guild's rank ladder as officers changed it (kind "t").
 --   bounties one per (target, poster), on a player or a guild (kind "b"),
 --            and one claim tally per (bounty, claimer) while it is up ("k").
+--            A bounty with gold goes to the first kill only; the poster then
+--            owes the winner that gold, and the marks on that debt (sent,
+--            received, settled) are kind "d".
 --   seen     last sighting per player. Local and best-effort, never versioned.
 --
 -- Pure Lua: no WoW API, so the whole thing runs in the offline tests.
@@ -32,9 +35,10 @@ Store.TOMB_DAYS = 180 -- removals stay in the synced set this long
 Store.FUTURE = 120 -- seconds a timestamp may be ahead of our clock
 Store.LOG_MAX = 300
 Store.MEMBER_DAYS = 365 -- a guildmate's totals leave the set after a year of silence
+Store.DEBT_SECONDS = 48 * 3600 -- how long the poster of a won gold bounty has to pay
 
 -- Kinds whose changes go in the log, and that are removed with tombstones.
-local LOGGED = { r = true, g = true, b = true, t = true }
+local LOGGED = { r = true, g = true, b = true, t = true, d = true }
 local TOMBED = { r = true, g = true, b = true }
 
 local function day(t)
@@ -82,7 +86,7 @@ function Store.New(data, now)
 	self.bucketOf, self.inSet, self.bset, self.sum = {}, {}, {}, {}
 	self.live, self.any, self.glive, self.gidx = {}, {}, {}, {}
 	self.scores = {} -- player key -> { [id] = true } for kind "c"
-	self.claims = {} -- bounty id -> { [id] = true } for kind "k"
+	self.claims = {} -- bounty id -> { [id] = true } for its claims ("k") and debt marks ("d")
 	self.blive = {} -- scope .. target key -> number of live bounties
 	self.count = 0
 	for b = 0, NB - 1 do
@@ -104,7 +108,7 @@ function Store.New(data, now)
 	end
 	-- Reports first, so facts and scores see the right "has a live report"
 	-- state.
-	local function dependent(rec) return rec.k == "f" or rec.k == "c" or rec.k == "k" end
+	local function dependent(rec) return rec.k == "f" or rec.k == "c" or rec.k == "k" or rec.k == "d" end
 	sort(loaded, function(a, b)
 		if dependent(a) ~= dependent(b) then return dependent(b) end
 		return a.id < b.id
@@ -131,9 +135,10 @@ end
 -- Internal bookkeeping
 ---------------------------------------------------------------------------
 
--- A claim belongs to one posting of its bounty: it counts while that bounty
--- is up, and only if it was made after the bounty was (last) posted. Claims
--- from before a take-down do not come back when the bounty is posted again.
+-- A claim (or a debt mark) belongs to one posting of its bounty: it counts
+-- while that bounty is up, and only if it was made after the bounty was (last)
+-- posted. Claims from before a take-down do not come back when the bounty is
+-- posted again.
 function Store:_claimCounts(rec)
 	local bounty = self.recs[rec.bid]
 	return bounty ~= nil and not bounty.del and rec.ts >= bounty.at
@@ -141,7 +146,7 @@ end
 
 function Store:_wantInSet(rec, now)
 	if rec.k == "f" or rec.k == "c" then return (self.live[rec.key] or 0) > 0 end
-	if rec.k == "k" then return self:_claimCounts(rec) end
+	if rec.k == "k" or rec.k == "d" then return self:_claimCounts(rec) end
 	if rec.k == "m" then return day(now) - day(rec.ts) < Store.MEMBER_DAYS end
 	if rec.del then return day(now) - day(rec.ts) < Store.TOMB_DAYS end
 	return true
@@ -220,7 +225,7 @@ function Store:_attach(rec, now)
 		if not rec.del then bump(self.glive, rec.key, 1) end
 	elseif rec.k == "c" then
 		index(self.scores, rec.key, id, true)
-	elseif rec.k == "k" then
+	elseif rec.k == "k" or rec.k == "d" then
 		index(self.claims, rec.bid, id, true)
 	elseif rec.k == "b" then
 		if not rec.del then bump(self.blive, rec.scope .. rec.key, 1) end
@@ -243,7 +248,7 @@ function Store:_detach(id, now)
 		if not rec.del then bump(self.glive, rec.key, -1) end
 	elseif rec.k == "c" then
 		index(self.scores, rec.key, id, false)
-	elseif rec.k == "k" then
+	elseif rec.k == "k" or rec.k == "d" then
 		index(self.claims, rec.bid, id, false)
 	elseif rec.k == "b" then
 		if not rec.del then bump(self.blive, rec.scope .. rec.key, -1) end
@@ -413,7 +418,8 @@ function Store:Age(now)
 	for id, rec in pairs(self.recs) do
 		if (rec.k == "f" or rec.k == "c") and not self.any[rec.key] then
 			orphans[#orphans + 1] = id
-		elseif rec.k == "k" and (not self.recs[rec.bid] or (not self.recs[rec.bid].del and not self:_claimCounts(rec))) then
+		elseif (rec.k == "k" or rec.k == "d")
+			and (not self.recs[rec.bid] or (not self.recs[rec.bid].del and not self:_claimCounts(rec))) then
 			orphans[#orphans + 1] = id -- its bounty is gone for good, or was posted anew since
 		elseif rec.k == "m" and day(now) - day(rec.ts) >= Store.MEMBER_DAYS then
 			orphans[#orphans + 1] = id
@@ -631,17 +637,39 @@ end
 
 --- Post (or change) `author`'s bounty on a player (scope "p") or a guild
 --- (scope "g"). `editor` is who writes it now: the author, or an officer.
-function Store:PostBounty(scope, name, points, reward, author, editor, now)
+--- `gold` (whole gold pieces, 0 for none) is what the poster promises the
+--- first guildmate to land the killing blow.
+function Store:PostBounty(scope, name, points, reward, author, editor, now, gold)
 	editor = editor or author
 	local id = Codec.BountyId(scope, Fold(name), Fold(author))
 	local mine = self.recs[id]
 	local live = mine and not mine.del and mine or nil
 	points = math.min(math.max(floor(points or 1), 1), Codec.MAX_POINTS)
+	gold = math.min(math.max(floor(gold or 0), 0), Codec.MAX_GOLD)
+	-- Changing the gold makes it a new posting: kills from before do not win
+	-- gold that was not on offer when they happened.
+	local same = live and (live.gold or 0) == gold
 	return self:_write(Codec.Seal({
 		k = "b", scope = scope, name = live and live.name or name, author = live and live.author or author,
-		mby = editor, ts = self:_nextTs(id, now), at = live and live.at or now, points = points,
+		mby = editor, ts = self:_nextTs(id, now), at = same and live.at or now, points = points, gold = gold,
 		reward = Util.Clean(reward or "", Codec.MAX_REWARD),
 	}), now)
+end
+
+--- Who won a gold bounty: the earliest claim on this posting. Returns the
+--- claim record, or nil while it is still open (or has no gold).
+function Store:Winner(bounty)
+	if bounty.del or (bounty.gold or 0) == 0 then return nil end
+	local set, best = self.claims[bounty.id], nil
+	if set then
+		for id in pairs(set) do
+			local c = self.recs[id]
+			if c.k == "k" and self:_claimCounts(c) then
+				if not best or c.ts < best.ts or (c.ts == best.ts and cmpBytes(c.akey, best.akey) < 0) then best = c end
+			end
+		end
+	end
+	return best
 end
 
 --- Count one more claim by `claimer` on a live bounty. Returns the claim
@@ -649,6 +677,7 @@ end
 function Store:Claim(bid, claimer, now)
 	local bounty = self.recs[bid]
 	if not bounty or bounty.del then return nil end
+	if self:Winner(bounty) then return nil end -- gold goes to the first kill, and that has been
 	local id = Codec.ClaimId(bounty.scope, bounty.key, bounty.akey, Fold(claimer))
 	local mine = self.recs[id]
 	-- A tally from an earlier posting of this bounty starts again from zero.
@@ -663,14 +692,93 @@ function Store:HasBounty(scope, key)
 	return self.blive[scope .. key] ~= nil
 end
 
---- A live bounty with its claims: { rec, claims = {claim records}, total }.
-function Store:_bountyView(rec)
+--- Put a mark on the debt of a won gold bounty. role "s" (the poster: state
+--- "s" sent), "w" (the winner: "r" received, "x" not received) or "o" (an
+--- officer: "o" settled); state "n" takes the mark back. Returns the record,
+--- or nil when the bounty is not up or nothing changes.
+function Store:SetMark(bid, role, state, author, now)
+	local bounty = self.recs[bid]
+	if not bounty or bounty.del then return nil end
+	local id = Codec.MarkId(bounty.scope, bounty.key, bounty.akey, role, Fold(author))
+	local mine = self.recs[id]
+	local current = mine and self:_claimCounts(mine) and mine.state or "n"
+	if current == state then return nil end
+	return self:_write(Codec.Seal({
+		k = "d", scope = bounty.scope, key = bounty.key, poster = bounty.author, role = role, author = author,
+		ts = math.max(self:_nextTs(id, now), bounty.at), state = state,
+	}), now)
+end
+
+function Store:_mark(id)
+	local rec = self.recs[id]
+	return rec and self:_claimCounts(rec) and rec.state or nil
+end
+
+--- The debt on a won gold bounty, or nil when there is none:
+--- { bounty, poster, pkey, winner, wkey, gold, at, due, state, open, late }.
+--- state: "owed", "sent" (the poster says so; the clock stops), "disputed"
+--- (the winner says it has not arrived), "paid" (the winner has it) or
+--- "settled" (an officer closed it). late: unpaid past the deadline.
+function Store:Debt(bounty, now)
+	local claim = self:Winner(bounty)
+	if not claim then return nil end
+	local scope, key, pkey = bounty.scope, bounty.key, bounty.akey
+	local winner = self:_mark(Codec.MarkId(scope, key, pkey, "w", claim.akey))
+	local state = "owed"
+	if self:_mark(Codec.MarkId(scope, key, pkey, "o")) == "o" then
+		state = "settled"
+	elseif winner == "r" then
+		state = "paid"
+	elseif winner == "x" then
+		state = "disputed"
+	elseif self:_mark(Codec.MarkId(scope, key, pkey, "s")) == "s" then
+		state = "sent"
+	end
+	local due = claim.ts + Store.DEBT_SECONDS
+	local unpaid = state == "owed" or state == "disputed"
+	return {
+		bounty = bounty, poster = bounty.author, pkey = pkey, winner = claim.author, wkey = claim.akey,
+		gold = bounty.gold, at = claim.ts, due = due, state = state,
+		open = unpaid or state == "sent", late = unpaid and now > due,
+	}
+end
+
+--- Every debt on a live gold bounty, oldest first.
+function Store:Debts(now)
+	local list = {}
+	for _, rec in pairs(self.recs) do
+		if rec.k == "b" and not rec.del and (rec.gold or 0) > 0 then
+			local debt = self:Debt(rec, now)
+			if debt then list[#list + 1] = debt end
+		end
+	end
+	sort(list, function(a, b)
+		if a.at ~= b.at then return a.at < b.at end
+		return a.bounty.id < b.bounty.id
+	end)
+	return list
+end
+
+--- Who is in disgrace right now: poster key -> their oldest overdue debt.
+function Store:Dishonor(now)
+	local out = {}
+	local debts = self:Debts(now)
+	for i = 1, #debts do
+		local d = debts[i]
+		if d.late and not out[d.pkey] then out[d.pkey] = d end
+	end
+	return out
+end
+
+--- A live bounty with its claims: { rec, claims = {claim records}, total,
+--- winner (the winning claim of a gold bounty), debt (when `now` is given) }.
+function Store:_bountyView(rec, now)
 	local claims, total = {}, 0
 	local set = self.claims[rec.id]
 	if set then
 		for id in pairs(set) do
 			local c = self.recs[id]
-			if self:_claimCounts(c) then
+			if c.k == "k" and self:_claimCounts(c) then
 				claims[#claims + 1] = c
 				total = total + c.count
 			end
@@ -680,15 +788,17 @@ function Store:_bountyView(rec)
 		if a.count ~= b.count then return a.count > b.count end
 		return a.id < b.id
 	end)
-	return { rec = rec, key = rec.id, claims = claims, total = total }
+	return { rec = rec, key = rec.id, claims = claims, total = total, winner = self:Winner(rec),
+		debt = now and self:Debt(rec, now) or nil }
 end
 
---- Live bounties, optionally only those on one target (scope and key).
-function Store:Bounties(scope, key)
+--- Live bounties, optionally only those on one target (scope and key). Pass
+--- `now` to have each one's debt worked out as well.
+function Store:Bounties(scope, key, now)
 	local list = {}
 	for _, rec in pairs(self.recs) do
 		if rec.k == "b" and not rec.del and (not scope or (rec.scope == scope and rec.key == key)) then
-			list[#list + 1] = self:_bountyView(rec)
+			list[#list + 1] = self:_bountyView(rec, now)
 		end
 	end
 	sort(list, function(a, b)

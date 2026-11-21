@@ -50,7 +50,13 @@ local function addGuildmate(tooltip, session, unit)
 	if not (_G.UnitIsInMyGuild and _G.UnitIsInMyGuild(unit)) then return end
 	local name = Names.OfUnit(unit)
 	if not name then return end
-	local rec = session.store:Member(Names.Key(name))
+	local key = Names.Key(name)
+	local disgrace = ns.Debts and ns.Debts:Dishonor(key)
+	if disgrace then
+		tooltip:AddLine(L.TIP_DISHONORED:format(disgrace.gold, Names.Display(disgrace.winner)), 1, 0.54, 0.50)
+		return
+	end
+	local rec = session.store:Member(key)
 	if not rec then return end
 	local rank = ns.Progress.RankFor(rec.kills, ns.Progress.Ladder(session.store))
 	tooltip:AddLine(L.TIP_GUILDMATE:format(rank and rank.title or L.UNRANKED, rec.kills), 0.94, 0.78, 0.37)

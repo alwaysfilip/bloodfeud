@@ -154,3 +154,172 @@ T.test("progress: bounties, claims, totals and tiers reach the whole guild", fun
 	T.ok(not kari.store:HasBounty("p", "grimtusk"))
 	T.eq(#kari.store:Bounties(), 0)
 end)
+
+T.test("gold: bounties with gold and debt marks round-trip, bad ones are refused", function()
+	local s = Store.New({}, NOW)
+	local b = roundTrip(s:PostBounty("p", "Grimtusk-Bloodaxe", 15, "for the camping", "Olaf-Stormborn", nil, NOW, 50))
+	T.eq(b.gold, 50)
+	T.eq(roundTrip(s:PostBounty("g", "Hostile Takeover", 5, "", "Olaf-Stormborn", nil, NOW)).gold, 0, "gold is optional")
+	T.eq(s:PostBounty("p", "Vexara", 5, "", "Olaf-Stormborn", nil, NOW, 5e9).gold, Codec.MAX_GOLD, "and capped")
+
+	s:Claim(b.id, "Kari-Frost", NOW + 10)
+	local sent = roundTrip(s:SetMark(b.id, "s", "s", "Olaf-Stormborn", NOW + 20))
+	T.eq(sent.id, "d:pgrimtusk-bloodaxe/olaf-stormborn/s")
+	T.eq(sent.bid, b.id)
+	local got = roundTrip(s:SetMark(b.id, "w", "r", "Kari-Frost", NOW + 30))
+	T.eq(got.id, "d:pgrimtusk-bloodaxe/olaf-stormborn/w/kari-frost")
+	local ruled = roundTrip(s:SetMark(b.id, "o", "o", "Astrid-Vale", NOW + 40))
+	T.eq(ruled.id, "d:pgrimtusk-bloodaxe/olaf-stormborn/o")
+	T.eq(s:SetMark(b.id, "o", "o", "Astrid-Vale", NOW + 41), nil, "no change, no write")
+
+	local E = ns.Util.Enc
+	T.eq(Codec.DecodeRecord("dp~grimtusk~Olaf~s~Kari~" .. E(NOW) .. "~s"), nil, "only the poster can say sent")
+	T.eq(Codec.DecodeRecord("dp~grimtusk~Olaf~w~Kari~" .. E(NOW) .. "~s"), nil, "a state of another role")
+	T.eq(Codec.DecodeRecord("dp~grimtusk~Olaf~q~Kari~" .. E(NOW) .. "~r"), nil, "unknown role")
+	T.ok(Codec.DecodeRecord("dp~grimtusk~Olaf~w~Kari~" .. E(NOW) .. "~x"), "a well-formed one parses")
+	T.eq(Codec.DecodeRecord("bGrim~Olaf~" .. E(NOW) .. "~~" .. E(NOW) .. "~p~" .. E(5) .. "~note"), nil,
+		"a 0.2.0 bounty, without the gold field")
+end)
+
+T.test("gold: the first kill wins, and the debt runs its course", function()
+	local HOUR = 3600
+	local s = Store.New({}, NOW)
+	local b = s:PostBounty("p", "Grimtusk", 10, "", "Olaf", nil, NOW, 50)
+	T.eq(s:Winner(b), nil)
+	T.eq(s:Debt(b, NOW), nil, "nobody is owed anything yet")
+
+	local claim = T.ok(s:Claim(b.id, "Kari", NOW + 100))
+	T.eq(s:Winner(b), claim)
+	T.eq(s:Claim(b.id, "Per", NOW + 200), nil, "the gold was already won")
+	T.eq(s:Claim(b.id, "Kari", NOW + 300), nil, "also for the winner: once is once")
+	T.eq(s:Bounties("p", "grimtusk")[1].winner, claim)
+
+	local d = T.ok(s:Debt(b, NOW + 100))
+	T.eq(d.winner, "Kari")
+	T.eq(d.poster, "Olaf")
+	T.eq(d.gold, 50)
+	T.eq(d.state, "owed")
+	T.eq(d.due, NOW + 100 + 48 * HOUR)
+	T.ok(d.open and not d.late)
+	T.eq(next(s:Dishonor(NOW + 100 + 47 * HOUR)), nil, "still in time")
+	T.ok(s:Debt(b, NOW + 100 + 49 * HOUR).late, "overdue after 48 hours")
+	T.eq(s:Dishonor(NOW + 100 + 49 * HOUR).olaf.winner, "Kari", "and the poster is in disgrace")
+
+	-- The poster sends it: the clock stops, even past the deadline
+	T.ok(s:SetMark(b.id, "s", "s", "Olaf", NOW + 40 * HOUR))
+	d = s:Debt(b, NOW + 60 * HOUR)
+	T.eq(d.state, "sent")
+	T.ok(d.open and not d.late)
+	-- Someone who is not the winner has no say
+	s:SetMark(b.id, "w", "r", "Per", NOW + 41 * HOUR)
+	T.eq(s:Debt(b, NOW + 60 * HOUR).state, "sent", "a bystander's 'received' is not looked at")
+	-- The winner says it never came: the clock runs again, from the claim
+	s:SetMark(b.id, "w", "x", "Kari", NOW + 42 * HOUR)
+	d = s:Debt(b, NOW + 60 * HOUR)
+	T.eq(d.state, "disputed")
+	T.ok(d.late)
+	-- ...then gets it
+	s:SetMark(b.id, "w", "r", "Kari", NOW + 61 * HOUR)
+	d = s:Debt(b, NOW + 62 * HOUR)
+	T.eq(d.state, "paid")
+	T.ok(not d.open and not d.late)
+	T.eq(next(s:Dishonor(NOW + 62 * HOUR)), nil)
+	T.eq(#s:Debts(NOW + 62 * HOUR), 1)
+
+	-- An officer can close a debt whatever the two say
+	local b2 = s:PostBounty("p", "Vexara", 10, "", "Olaf", nil, NOW, 20)
+	s:Claim(b2.id, "Per", NOW + 10)
+	s:SetMark(b2.id, "w", "x", "Per", NOW + 20)
+	s:SetMark(b2.id, "o", "o", "Astrid", NOW + 30)
+	T.eq(s:Debt(b2, NOW + 99 * HOUR).state, "settled")
+	T.ok(not s:Debt(b2, NOW + 99 * HOUR).late)
+	s:SetMark(b2.id, "o", "n", "Astrid", NOW + 40)
+	T.eq(s:Debt(b2, NOW + 99 * HOUR).state, "disputed", "and take that back")
+
+	-- Who won is the earliest claim, whatever order the claims arrive in
+	local a, c = Store.New({}, NOW), Store.New({}, NOW)
+	local posted = a:PostBounty("p", "Zulrakka", 10, "", "Olaf", nil, NOW, 5)
+	c:Merge(Codec.DecodeRecord(posted.wire), NOW)
+	local first = a:Claim(posted.id, "Kari", NOW + 50)
+	local second = c:Claim(posted.id, "Per", NOW + 60) -- Per had not heard of Kari's kill yet
+	a:Merge(Codec.DecodeRecord(second.wire), NOW + 70)
+	c:Merge(Codec.DecodeRecord(first.wire), NOW + 70)
+	T.eq(a:Winner(a:Get(posted.id)).author, "Kari")
+	T.eq(c:Winner(c:Get(posted.id)).author, "Kari", "both agree on the earlier kill")
+	T.eq(a:Dump(), c:Dump())
+
+	-- Changing the gold makes it a new posting: old kills do not win it
+	local p = s:PostBounty("p", "Sylveth", 10, "", "Olaf", nil, NOW)
+	s:Claim(p.id, "Kari", NOW + 5)
+	T.eq(s:Bounties("p", "sylveth")[1].total, 1)
+	p = s:PostBounty("p", "Sylveth", 10, "", "Olaf", nil, NOW + 50, 30)
+	T.eq(s:Winner(p), nil, "a kill from before the gold was offered does not win it")
+	T.ok(s:Claim(p.id, "Per", NOW + 60))
+	T.eq(s:Winner(s:Get(p.id)).author, "Per")
+	-- ...and so do the marks of the earlier posting
+	s:SetMark(p.id, "s", "s", "Olaf", NOW + 70)
+	local again = s:PostBounty("p", "Sylveth", 10, "", "Olaf", nil, NOW + 80, 40)
+	s:Claim(again.id, "Kari", NOW + 90)
+	T.eq(s:Debt(s:Get(again.id), NOW + 91).state, "owed", "an old 'sent' does not carry over")
+end)
+
+T.test("gold: who may put which mark on a debt", function()
+	local roster = { IsOfficer = function(key) return key == "astrid" end }
+	local s = Store.New({}, NOW)
+	local b = s:PostBounty("p", "Grimtusk", 10, "", "Olaf", nil, NOW, 50)
+	s:Claim(b.id, "Kari", NOW + 1)
+	local sent = s:SetMark(b.id, "s", "s", "Olaf", NOW + 2)
+	T.ok(Permissions.CanWrite(sent, "olaf", roster))
+	T.ok(not Permissions.CanWrite(sent, "kari", roster))
+	T.ok(not Permissions.NeedsRoster(sent, "olaf"))
+	local got = s:SetMark(b.id, "w", "r", "Kari", NOW + 3)
+	T.ok(Permissions.CanWrite(got, "kari", roster))
+	T.ok(not Permissions.CanWrite(got, "olaf", roster), "the poster cannot confirm their own payment")
+	T.ok(not Permissions.CanWrite(got, "astrid", roster))
+	local ruled = s:SetMark(b.id, "o", "o", "Astrid", NOW + 4)
+	T.ok(Permissions.CanWrite(ruled, "astrid", roster))
+	T.ok(Permissions.NeedsRoster(ruled, "astrid"))
+	local fake = Codec.Seal({ k = "d", scope = "p", key = "grimtusk", poster = "Olaf", role = "o", author = "Olaf",
+		ts = NOW + 5, state = "o" })
+	T.ok(not Permissions.CanWrite(fake, "olaf", roster), "a member cannot settle their own debt")
+end)
+
+T.test("gold: a won bounty and its marks reach the whole guild", function()
+	local sim = Sim.New(ns, 31)
+	local c = {}
+	for i, name in ipairs({ "Olaf", "Kari", "Per", "Astrid" }) do c[i] = sim:AddClient(name, { officer = name == "Astrid" }) end
+	local olaf, kari, per, astrid = c[1], c[2], c[3], c[4]
+	sim:Run(40)
+	local b = olaf.store:PostBounty("p", "Grimtusk", 20, "", "Olaf", nil, olaf.env.time(), 50)
+	sim:Run(10)
+	kari.store:Claim(b.id, "Kari", kari.env.time())
+	sim:Run(10)
+	for _, client in ipairs(c) do
+		local debt = T.ok(client.store:Debt(client.store:Get(b.id), client.env.time()), client.name .. " sees the debt")
+		T.eq(debt.winner, "Kari")
+		T.eq(debt.state, "owed")
+	end
+	T.eq(per.store:Claim(b.id, "Per", per.env.time()), nil, "too late for Per")
+
+	-- The poster cannot settle it himself; the winner's word does
+	olaf.store:SetMark(b.id, "o", "o", "Olaf", olaf.env.time())
+	sim:Run(15)
+	T.eq(per.store:Debt(per.store:Get(b.id), per.env.time()).state, "owed", "a member's 'settled' is refused")
+	olaf.store:SetMark(b.id, "o", "n", "Olaf", olaf.env.time())
+	olaf.store:SetMark(b.id, "s", "s", "Olaf", olaf.env.time())
+	sim:Run(10)
+	T.eq(astrid.store:Debt(astrid.store:Get(b.id), astrid.env.time()).state, "sent")
+	kari.store:SetMark(b.id, "w", "r", "Kari", kari.env.time())
+	sim:Run(10)
+	T.eq(olaf.store:Debt(olaf.store:Get(b.id), olaf.env.time()).state, "paid")
+	T.eq(per.store:Debt(per.store:Get(b.id), per.env.time()).state, "paid")
+
+	-- An officer settles another one
+	local b2 = olaf.store:PostBounty("p", "Vexara", 20, "", "Olaf", nil, olaf.env.time(), 10)
+	sim:Run(10)
+	per.store:Claim(b2.id, "Per", per.env.time())
+	sim:Run(10)
+	astrid.store:SetMark(b2.id, "o", "o", "Astrid", astrid.env.time())
+	sim:Run(10)
+	T.eq(kari.store:Debt(kari.store:Get(b2.id), kari.env.time()).state, "settled")
+end)

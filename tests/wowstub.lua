@@ -171,6 +171,30 @@ function Stub.Install()
 		end
 		return nil
 	end
+	-- Mail and trade. world.inbox: list of { sender, subject, money } (copper);
+	-- world.money: the purse; world.tradeGive / world.tradeGet: copper offered.
+	world.inbox, world.money, world.sendMoney = {}, 1000000, 0
+	G.hooksecurefunc = function(name, fn)
+		local original = G[name]
+		G[name] = function(...)
+			local a, b, c = original(...)
+			fn(...)
+			return a, b, c
+		end
+	end
+	G.SetSendMailMoney = function(copper) world.sendMoney = copper end
+	G.GetSendMailMoney = function() return world.sendMoney end
+	G.SendMail = function(recipient) world.mailed = { to = recipient, copper = world.sendMoney } end
+	G.GetInboxNumItems = function() return #world.inbox, #world.inbox end
+	G.GetInboxHeaderInfo = function(i)
+		local m = world.inbox[i]
+		if not m then return nil end
+		return nil, nil, m.sender, m.subject, m.money, 0, 30, 0, false, false, true, true, false
+	end
+	G.GetMoney = function() return world.money end
+	G.GetPlayerTradeMoney = function() return world.tradeGive or 0 end
+	G.GetTargetTradeMoney = function() return world.tradeGet or 0 end
+	G.ERR_TRADE_COMPLETE = "Trade complete."
 	-- world.recap: list of { sourceName, sourceGUID, timestamp }, newest first
 	G.C_DeathRecap = {
 		HasRecapEvents = function() return world.recap ~= nil end,

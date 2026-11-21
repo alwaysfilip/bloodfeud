@@ -109,9 +109,10 @@ local function showScore(rest)
 	end
 end
 
---- /feud bounty [points] [reward] with an enemy targeted (like /feud add,
+--- /feud bounty [points] [gold] [note] with an enemy targeted (like /feud add,
 --- everything typed is about the target), otherwise /feud bounty Name
---- [points] [reward]. "<Guild Name> [points] [reward]" is a guild either way.
+--- [points] [gold] [note]. "<Guild Name> ..." is a guild either way. Gold is
+--- a number with "g" or "gold" after it: "50g", "50 gold".
 local function postBounty(rest)
 	local guild, tail = rest:match("^<(.-)>%s*(.*)$")
 	local scope, name = "p", nil
@@ -131,10 +132,23 @@ local function postBounty(rest)
 		return
 	end
 	tail = tail or ""
-	local points, reward = tail:match("^(%d+)%s*(.*)$")
-	if not points then reward = tail end
+	-- A bare number is the points, a number with "g" the gold, in either
+	-- order; whatever follows is the note.
+	local points, gold
+	for _ = 1, 2 do
+		local g, afterGold = tail:match("^(%d+)%s*gold%f[%A]%s*(.*)$")
+		if not g then g, afterGold = tail:match("^(%d+)%s*g%f[%A]%s*(.*)$") end
+		local p, afterPoints = tail:match("^(%d+)%f[%D]%s*(.*)$")
+		if g and not gold then
+			gold, tail = g, afterGold
+		elseif p and not g and not points then
+			points, tail = p, afterPoints
+		else
+			break
+		end
+	end
 	-- Whatever was left out keeps the value of a bounty I already have up.
-	ns:PostBounty(scope, name, tonumber(points), reward ~= "" and reward or nil)
+	ns:PostBounty(scope, name, tonumber(points), tail ~= "" and tail or nil, tonumber(gold))
 end
 
 --- /feud rank: my rank; /feud rank set <n> <kills> <title> for officers.
@@ -194,6 +208,8 @@ local function slash(input)
 		postBounty(rest)
 	elseif command == "bounties" then
 		ns.MainFrame:Show("b")
+	elseif command == "debts" or command == "debt" then
+		if ns.Debts:Remind() == 0 then ns:Print(L.DEBT_NONE) end
 	elseif command == "rank" or command == "ranks" then
 		rankCommand(rest)
 	elseif command == "ach" or command == "achievements" then
@@ -232,8 +248,8 @@ end
 -- Start-up
 ---------------------------------------------------------------------------
 
-local MODULES = { "Roster", "Comm", "Detect", "Sightings", "Feuds", "Progress", "Radar", "MainFrame", "RadarUI", "Tooltip",
-	"UnitMenu", "Nameplates", "Minimap", "Options" }
+local MODULES = { "Roster", "Comm", "Detect", "Sightings", "Feuds", "Progress", "Debts", "Radar", "MainFrame", "RadarUI",
+	"Tooltip", "UnitMenu", "Nameplates", "Minimap", "Options" }
 
 local function start()
 	-- Each part starts on its own, so one failure does not take the rest down.

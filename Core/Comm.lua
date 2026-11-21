@@ -66,6 +66,8 @@ local function onAddonMessage(prefix, text, channel, sender)
 	if not who then return end
 	if prefix == ns.PREFIX then
 		session.sync:OnFrame(who, text)
+	elseif text:sub(1, 1) == "P" then
+		if ns.Users then ns.Users:OnFrame(who, text) end
 	elseif ns.Sightings then
 		ns.Sightings:OnFrame(who, text)
 	end
@@ -146,6 +148,9 @@ function ns:BindGuild(guildName)
 	})
 	sync.onApplied = announce
 	sync.onDenied = denied
+	sync.onHeard = function(sender, proto)
+		if ns.Users then ns.Users:Heard(sender, nil, proto) end
+	end
 
 	self.session = { guild = guildName, store = store, sync = sync, me = me, meKey = Names.Key(me) }
 	store:OnChange(function(id, rec, old)

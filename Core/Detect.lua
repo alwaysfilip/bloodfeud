@@ -76,6 +76,7 @@ local function handle(unit)
 	if not info then return end
 	if ns.Feuds then ns.Feuds:Saw(info) end
 	if ns.Radar then ns.Radar:Saw(info, unit) end
+	if ns.Targeting then ns.Targeting:Look(unit, info) end
 	local store = session.store
 
 	local key = Detect.Match(store, info)

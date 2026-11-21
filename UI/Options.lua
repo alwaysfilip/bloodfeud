@@ -16,6 +16,10 @@ local CHECKS = {
 	{ "sightShow", L.OPT_SIGHT_SHOW, L.OPT_SIGHT_SHOW_TIP },
 	{ "revenge", L.OPT_REVENGE, L.OPT_REVENGE_TIP },
 	{ "bountyAlerts", L.OPT_BOUNTY_ALERTS, L.OPT_BOUNTY_ALERTS_TIP },
+	{ "targetAlerts", L.OPT_TARGET_ALERTS, L.OPT_TARGET_ALERTS_TIP },
+	{ "targetSound", L.OPT_TARGET_SOUND, L.OPT_TARGET_SOUND_TIP },
+	{ "targetPet", L.OPT_TARGET_PET, L.OPT_TARGET_PET_TIP },
+	{ "stealthAlerts", L.OPT_STEALTH, L.OPT_STEALTH_TIP },
 	{ "radar", L.OPT_RADAR, L.OPT_RADAR_TIP },
 	{ "radarAuto", L.OPT_RADAR_AUTO, L.OPT_RADAR_AUTO_TIP },
 	{ "radarSound", L.OPT_RADAR_SOUND, L.OPT_RADAR_SOUND_TIP },
@@ -44,6 +48,7 @@ function Options:Init()
 			setting:SetValueChangedCallback(function()
 				ns.Nameplates:Clear()
 				ns.Detect.ScanNameplates()
+				ns.Nameplates:Aims()
 			end)
 		elseif (key == "radar" or key == "radarAuto") and setting and setting.SetValueChangedCallback then
 			setting:SetValueChangedCallback(function() ns.RadarUI:Update() end)

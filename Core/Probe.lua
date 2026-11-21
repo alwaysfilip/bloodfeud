@@ -210,6 +210,35 @@ local function collect(add)
 	end
 
 	add("")
+	add("== who targets me ==")
+	local ts = ns.Targeting.stats
+	add(("this session: looks %d, could not tell %d, enemies seen targeting me %d  UnitIsUnit: %s"):format(ts.checks,
+		ts.unknown, ts.hits, type(_G.UnitIsUnit)))
+	for _, unit in ipairs({ "target", "focus", "nameplate1" }) do
+		if select(2, try(_G.UnitExists, unit)) == true then
+			local theirs = unit .. "target"
+			add(("[%s] has a target: %s  UnitIsUnit(%s, player): %s  its GUID: %s  Targeting.Check: %s"):format(unit,
+				show(select(2, try(_G.UnitExists, theirs))), theirs, show(select(2, try(_G.UnitIsUnit, theirs, "player"))),
+				mask(select(2, try(_G.UnitGUID, theirs))), show(select(2, pcall(ns.Targeting.Check, unit)))))
+		end
+	end
+
+	add("")
+	add("== stealth ==")
+	local ss = ns.Stealth.stats
+	local known = {}
+	for name in pairs(ns.Stealth.names) do known[#known + 1] = name end
+	table.sort(known)
+	add(("UNIT_SPELLCAST_SUCCEEDED registered: %s  this session: casts by others %d, spell withheld %d, stealth seen %d"):format(
+		show(ns.Stealth.events.UNIT_SPELLCAST_SUCCEEDED), ss.casts, ss.secret, ss.hits))
+	add("spell names watched: " .. table.concat(known, ", ") .. "  C_Spell.GetSpellName: "
+		.. type(_G.C_Spell and _G.C_Spell.GetSpellName))
+	for id, english in pairs(ns.Stealth.KNOWN) do
+		add(("  spell %d (%s) is called here: %s"):format(id, english,
+			show(_G.C_Spell and _G.C_Spell.GetSpellName and select(2, try(_G.C_Spell.GetSpellName, id)))))
+	end
+
+	add("")
 	add("== mail and trade (bounty gold) ==")
 	local debts = ns.Debts
 	local function kinds(names)

@@ -72,6 +72,14 @@ the moment you meet that player in the world.
   rename the ranks and move the thresholds for the whole guild.
 - **Achievements.** 31 of them, from First Blood to Clan Breaker, announced to
   your guild when you earn them.
+- **Targeting you.** When an enemy player targets you or your pet, you are
+  told who it is: class, level and guild, whether they are Kill on Sight, and
+  how many times they have killed your guildmates. They are marked on the
+  radar and on their nameplate.
+- **Stealth alert.** When an enemy player you can see uses Stealth, Vanish,
+  Prowl or Shadowmeld, you are told, and the radar keeps them marked.
+- **Who has the addon.** A tab listing the guildmates who run Blood Feud,
+  their version, and who needs to update.
 
 ### How to use it
 
@@ -91,6 +99,7 @@ the moment you meet that player in the world.
 | `/feud radar` | Show or hide the radar |
 | `/feud bounty [Firstname-Surname] [points] [50g] [note]` | Post a bounty; `50g` puts 50 gold on it |
 | `/feud debts` | Bounty gold you owe and are owed |
+| `/feud users` | Which guildmates run Blood Feud |
 | `/feud rank` | Your rank and the guild's ranks |
 | `/feud ach` | Your achievements |
 | `/feud log` | Recent changes and who sent them |
@@ -121,6 +130,10 @@ those limits:
 - **Kills and deaths are counted in the open world.** A kill counts when it
   was your (or your pet's) killing blow. Your killer is read from the death
   recap. Ranks, bounties and achievements build on those kills.
+- **"Targeting you" covers the enemies the game shows you:** those with a
+  nameplate, your target and your focus.
+- **The stealth alert fires when an enemy you can see goes into stealth.**
+  Someone already stealthed when they came near cannot be detected.
 - **The radar is a list, not a map.** Addons cannot read where an enemy
   stands, so it shows who the game has shown you in the last minute.
 - **It cannot move gold, only watch it.** Bounty gold is paid by ordinary
@@ -140,8 +153,9 @@ those limits:
 
 ### Privacy
 
-Blood Feud only talks on your guild's hidden addon channel. It sends the
-list entries, what it saw of a listed player (class, level and guild), your
+Blood Feud only talks on your guild's hidden addon channel. It tells your
+guild that you run the addon and which version, and it sends the list
+entries, what it saw of a listed player (class, level and guild), your
 kill and death count against listed players, your totals, rank and
 achievements, the bounties you post and claim, whether the gold of a won
 bounty was sent and received, and sightings of listed players with your zone

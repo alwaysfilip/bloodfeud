@@ -39,7 +39,10 @@ Core\Achievements.lua
 Core\Progress.lua
 Core\Bounties.lua
 Core\Debts.lua
+Core\Users.lua
 Core\Radar.lua
+Core\Targeting.lua
+Core\Stealth.lua
 Core\Probe.lua
 
 UI\Widgets.lua

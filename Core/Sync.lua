@@ -531,6 +531,8 @@ function Sync:OnFrame(sender, text)
 		self.stats.bad = self.stats.bad + 1
 		return
 	end
+	-- Anyone sending these runs the addon, whatever version they are on.
+	if not mine and self.onHeard then self.onHeard(sender, frame.proto) end
 	if frame.proto ~= Codec.PROTO then
 		if frame.proto > Codec.PROTO then self.newerSeen = true end
 		return

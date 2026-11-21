@@ -24,6 +24,10 @@ local DEFAULTS = {
 	radarAuto = true, -- ...shown only while enemies are around
 	radarSound = false, -- ...with a ping for each new enemy
 	bountyAlerts = true, -- alert when someone with a bounty shows up
+	targetAlerts = true, -- alert when an enemy player targets me
+	targetSound = true, -- ...with a sound
+	targetPet = true, -- ...also when it is my pet they target
+	stealthAlerts = true, -- alert when an enemy player near me goes into stealth
 	debug = false,
 }
 

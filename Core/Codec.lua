@@ -32,6 +32,7 @@
 --   H <proto> <count:3> <root:6> <flags:1> <64 bucket digests, 3 chars each>
 --   U <proto> <bucket:1> <digest:3> <root:6> record ^ record ...
 --   S <proto> key ~ name ~ map ~ x ~ y ~ time     (sighting, second prefix)
+--   P 1 version ~ proto ~ ask                     (presence, second prefix)
 local _, ns = ...
 
 local Util = ns.Util
@@ -55,6 +56,7 @@ Codec.MAX_TITLE = 32
 Codec.MAX_REWARD = 40
 Codec.MAX_POINTS = 100 -- per bounty claim
 Codec.MAX_GOLD = 999999 -- whole gold pieces promised to the first kill
+Codec.MAX_VERSION = 24
 Codec.MAX_TIERS = 12
 Codec.MAX_ACHIEVEMENTS = 48 -- bits in one 8-digit number
 Codec.UPDATE_HEADER = 12
@@ -533,6 +535,23 @@ function Codec.DecodeSighting(text)
 	if s.name and not Util.IsClean(s.name, Codec.MAX_NAME) then return nil end
 	if (s.x and s.x > 1000) or (s.y and s.y > 1000) then return nil end
 	return s
+end
+
+--- Presence: "I run Blood Feud, this version", with an optional "and who
+--- else does?". It rides on the second prefix and is deliberately not tied
+--- to the state protocol: clients on any version can read it, which is how
+--- the ones that need to update are found. Fields may be added at the end.
+function Codec.EncodePresence(version, proto, ask)
+	return "P1" .. esc(version or "") .. "~" .. Enc(proto) .. "~" .. (ask and "?" or "")
+end
+
+function Codec.DecodePresence(text)
+	if type(text) ~= "string" or sub(text, 1, 2) ~= "P1" or #text > 96 then return nil end
+	local parts, n = split(sub(text, 3), "~")
+	if n < 2 then return nil end
+	local version, proto = unesc(parts[1]), Dec(parts[2])
+	if not proto or not Util.IsClean(version, Codec.MAX_VERSION) then return nil end
+	return { version = version ~= "" and version or nil, proto = proto, ask = parts[3] == "?" }
 end
 
 --- Largest clean reason that still lets the whole record fit in one frame.

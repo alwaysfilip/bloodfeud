@@ -66,7 +66,9 @@ local function showProbe(lines)
 end
 
 local SETTINGS = { banner = true, sound = true, chat = true, nameplates = true, guildAlerts = true, sightSend = true,
-	sightShow = true, revenge = true, bountyAlerts = true, radar = true, radarAuto = true, radarSound = true, debug = true }
+	sightShow = true, revenge = true, bountyAlerts = true, targetAlerts = true, targetSound = true, targetPet = true,
+	stealthAlerts = true, radar = true,
+	radarAuto = true, radarSound = true, debug = true }
 -- Numeric settings: name -> { min, max }
 local NUMBERS = { revengeCount = { 2, 10 }, revengeWindow = { 5, 120 } }
 
@@ -107,6 +109,25 @@ local function showScore(rest)
 		local e = book[keys[i]]
 		ns:Print("   " .. L.SCORE_BY:format(Names.Display(e.n or keys[i]), e.k, e.d))
 	end
+end
+
+--- /feud users: who in the guild runs the addon.
+local function showUsers()
+	if not ns.session then
+		ns:Print(L.MSG_NO_GUILD)
+		return
+	end
+	ns.Users:Ask()
+	local sum, list = ns.Users:Summary()
+	ns:Print((sum.total > 0 and L.USERS_SUMMARY:format(sum.have, sum.total) or L.USERS_SUMMARY_PLAIN:format(sum.have))
+		.. ", " .. L.USERS_ONLINE:format(sum.online) .. ".")
+	for i = 1, math.min(#list, 40) do
+		local u = list[i]
+		local note = u.standing == "old" and (" · " .. L.USER_OLD) or (u.standing == "new" and (" · " .. L.USER_NEW) or "")
+		ns:Print(("   %s  %s  %s%s"):format(Names.Display(u.name), u.version or "?",
+			u.online and L.USER_ONLINE or L.USER_OFFLINE, note))
+	end
+	if #list > 40 then ns:Print("   " .. L.MORE:format(#list - 40)) end
 end
 
 --- /feud bounty [points] [gold] [note] with an enemy targeted (like /feud add,
@@ -208,6 +229,8 @@ local function slash(input)
 		postBounty(rest)
 	elseif command == "bounties" then
 		ns.MainFrame:Show("b")
+	elseif command == "users" or command == "who" then
+		showUsers()
 	elseif command == "debts" or command == "debt" then
 		if ns.Debts:Remind() == 0 then ns:Print(L.DEBT_NONE) end
 	elseif command == "rank" or command == "ranks" then
@@ -235,8 +258,8 @@ local function slash(input)
 			ns.settings[key] = math.min(math.max(math.floor(number), range[1]), range[2])
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
 		else
-			ns:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|bountyAlerts|radar|"
-				.. "radarAuto|radarSound|debug> on|off")
+			ns:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|bountyAlerts|"
+				.. "targetAlerts|targetSound|targetPet|stealthAlerts|radar|radarAuto|radarSound|debug> on|off")
 			ns:Print("/feud set revengeCount <2-10> · /feud set revengeWindow <5-120 minutes>")
 		end
 	else
@@ -248,7 +271,8 @@ end
 -- Start-up
 ---------------------------------------------------------------------------
 
-local MODULES = { "Roster", "Comm", "Detect", "Sightings", "Feuds", "Progress", "Debts", "Radar", "MainFrame", "RadarUI",
+local MODULES = { "Roster", "Comm", "Users", "Detect", "Sightings", "Feuds", "Progress", "Debts", "Radar", "Targeting", "Stealth",
+	"MainFrame", "RadarUI",
 	"Tooltip", "UnitMenu", "Nameplates", "Minimap", "Options" }
 
 local function start()

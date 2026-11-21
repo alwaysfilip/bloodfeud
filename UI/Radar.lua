@@ -12,6 +12,9 @@ local WIDTH, ROW_H, ROWS = 300, 20, 10
 local TOP = 30
 local SOUND_NEW = 3175 -- SOUNDKIT.MAP_PING
 
+local ON_YOU = "ffff8c33"
+local STEALTH = "ffb88cff"
+
 local TAGS = {
 	[3] = { L.RADAR_KOS, "ffff8a80" },
 	[2] = { L.RADAR_BOUNTY, "fff0c75e" },
@@ -28,15 +31,19 @@ local function rowTooltip(row)
 	local what = Fmt.Describe(info)
 	if what ~= "" then GameTooltip:AddLine(what, 1, 1, 1) end
 	if info.guild then GameTooltip:AddLine("<" .. info.guild .. ">", 1, 0.7, 0.28) end
+	if entry.targeting then
+		GameTooltip:AddLine(entry.targeting == "pet" and L.RADAR_TARGETING_PET or L.RADAR_TARGETING, 1, 0.55, 0.2)
+	end
+	if entry.stealth and not entry.plate then
+		GameTooltip:AddLine(L.RADAR_STEALTHED:format(entry.stealthSpell or "?", math.floor(GetTime() - entry.stealth + 0.5)),
+			0.72, 0.55, 1)
+	end
 	local s = ns.session
-	if s and entry.listKey then
-		local subject = s.store:Player(entry.listKey)
-		if subject and subject.reports[1].reason ~= "" then
-			GameTooltip:AddLine("“" .. subject.reports[1].reason .. "”", 1, 0.54, 0.5, true)
+	if s and ns.Targeting then
+		for _, line in ipairs(ns.Alerts.DossierLines(ns.Targeting:Dossier(info))) do
+			GameTooltip:AddLine(line, 1, 1, 1, true)
 		end
 	end
-	local bounty = ns.Bounties and ns.Bounties:Line(info, entry.listKey)
-	if bounty then GameTooltip:AddLine(bounty, 0.94, 0.78, 0.37) end
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine(L.RADAR_HINT, 0.66, 0.65, 0.61, true)
 	GameTooltip:Show()
@@ -152,7 +159,16 @@ function RadarUI:Render()
 			if info.level then label = label .. " " .. Fmt.Color(Fmt.GREY, tostring(info.level)) end
 			row.name:SetText(hex and Fmt.Color(hex, label) or label)
 			local tag = TAGS[entry.tag]
-			row.tag:SetText(tag and Fmt.Color(tag[2], tag[1]) or (info.guild and Fmt.Color(Fmt.GREY, "<" .. info.guild .. ">") or ""))
+			if entry.targeting then
+				-- Kill on Sight stays visible next to it; lesser tags give way.
+				row.tag:SetText((entry.tag == 3 and (Fmt.Color(tag[2], tag[1]) .. " ") or "")
+					.. Fmt.Color(ON_YOU, entry.targeting == "pet" and L.RADAR_ON_PET or L.RADAR_ON_YOU))
+			elseif entry.stealth and not entry.plate then
+				row.tag:SetText((entry.tag == 3 and (Fmt.Color(tag[2], tag[1]) .. " ") or "") .. Fmt.Color(STEALTH, L.RADAR_STEALTH))
+			else
+				row.tag:SetText(tag and Fmt.Color(tag[2], tag[1])
+					or (info.guild and Fmt.Color(Fmt.GREY, "<" .. info.guild .. ">") or ""))
+			end
 			row.age:SetText(entry.plate and Fmt.Color("ff8fd18f", L.RADAR_NEAR)
 				or L.RADAR_AGO:format(math.floor(now - entry.at + 0.5)))
 			row:Show()
@@ -160,7 +176,12 @@ function RadarUI:Render()
 			row:Hide()
 		end
 	end
-	f.title:SetText(#list > 0 and L.RADAR_TITLE_N:format(#list) or L.RADAR_TITLE)
+	local onMe = ns.Targeting and ns.Targeting:Count() or 0
+	if onMe > 0 then
+		f.title:SetText(L.RADAR_TITLE_ON:format(#list, onMe))
+	else
+		f.title:SetText(#list > 0 and L.RADAR_TITLE_N:format(#list) or L.RADAR_TITLE)
+	end
 	f.empty:SetShown(#list == 0)
 end
 
@@ -179,6 +200,7 @@ function RadarUI:Init()
 			pcall(_G.PlaySound, SOUND_NEW, "Master")
 		end
 	end)
+	ns:Listen("TARGETING_CHANGED", function() RadarUI:Update() end)
 	ns:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(1, function() RadarUI:Update() end) end)
 	ns:On("ZONE_CHANGED_NEW_AREA", function() RadarUI:Update() end)
 	C_Timer.After(2, function() RadarUI:Update() end)

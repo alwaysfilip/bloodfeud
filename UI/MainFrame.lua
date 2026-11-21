@@ -1,9 +1,10 @@
--- The main window, in five tabs:
+-- The main window, in six tabs:
 --   Players       who is Kill on Sight, why, who says so, where last seen
 --   Guilds        enemy guilds on the list (officers)
 --   Bounties      prices on enemy heads, and who has collected
 --   Ranks         every guildmate's kills, rank and bounty points
 --   Achievements  what you have earned, and how many guildmates have
+--   Addon         which guildmates run Blood Feud, and on which version
 -- Each tab describes its columns, rows and buttons in TABS below; the window
 -- itself is shared.
 local _, ns = ...
@@ -19,7 +20,7 @@ local PAD = 14
 local ROW_H, ROWS = 24, 14
 local LIST_TOP = 118
 local MAX_COLS = 7
-local TAB_ORDER = { "r", "g", "b", "m", "a" }
+local TAB_ORDER = { "r", "g", "b", "m", "a", "u" }
 
 local function grey(text)
 	return Fmt.Color(Fmt.GREY, text)
@@ -274,6 +275,38 @@ TABS.a = {
 	empty = "",
 }
 
+-- Addon users -------------------------------------------------------------
+
+TABS.u = {
+	label = L.TAB_USERS,
+	columns = {
+		{ title = L.COL_NAME, w = 240 }, { title = L.COL_VERSION, w = 150 }, { title = L.COL_STATUS, w = 320 },
+		{ title = L.COL_HEARD, w = 160 },
+	},
+	items = function() return ns.Users:List() end,
+	matches = function(u, q) return contains(q, u.name, u.version) end,
+	cells = function(u)
+		local name = Names.Display(u.name)
+		if u.me then name = Fmt.Color(Fmt.GOLD, name) end
+		local status = u.online and Fmt.Color(GREEN, L.USER_ONLINE) or grey(L.USER_OFFLINE)
+		if u.standing == "old" then
+			status = status .. " · " .. Fmt.Color(Fmt.AMBER, L.USER_OLD)
+		elseif u.standing == "new" then
+			status = status .. " · " .. Fmt.Color(Fmt.AMBER, L.USER_NEW)
+		end
+		return { name, u.version or grey("?"), status, u.me and grey(L.USER_YOU) or Fmt.Ago(u.t) }
+	end,
+	notice = function()
+		local sum = ns.Users:Summary()
+		local text = sum.total > 0 and L.USERS_SUMMARY:format(sum.have, sum.total) or L.USERS_SUMMARY_PLAIN:format(sum.have)
+		text = text .. "   ·   " .. L.USERS_ONLINE:format(sum.online)
+		if sum.old > 0 then text = text .. "   ·   " .. Fmt.Color(Fmt.AMBER, L.USERS_OLD:format(sum.old)) end
+		if sum.new > 0 then text = text .. "   ·   " .. Fmt.Color(Fmt.AMBER, L.USERS_NEW:format(sum.new)) end
+		return text
+	end,
+	empty = "",
+}
+
 ---------------------------------------------------------------------------
 -- Row tooltips
 ---------------------------------------------------------------------------
@@ -368,12 +401,25 @@ local function tipAchievement(item)
 	end
 end
 
+local function tipUser(u)
+	GameTooltip:AddLine(Names.Display(u.name))
+	GameTooltip:AddLine(L.USER_VERSION:format(u.version or "?"), 1, 1, 1)
+	if u.standing == "old" then
+		GameTooltip:AddLine(L.USER_OLD_TIP, 1, 0.7, 0.28, true)
+	elseif u.standing == "new" then
+		GameTooltip:AddLine(L.USER_NEW_TIP, 1, 0.7, 0.28, true)
+	end
+	if not u.me then GameTooltip:AddLine(L.USER_HEARD:format(Fmt.Ago(u.t)), 0.66, 0.65, 0.61) end
+end
+
 local function showRowTooltip(row)
 	local item = row.item
 	if not item then return end
 	GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
 	local tab = Main.tab
-	if tab == "r" or tab == "g" then
+	if tab == "u" then
+		tipUser(item)
+	elseif tab == "r" or tab == "g" then
 		tipSubject(item)
 	elseif tab == "b" then
 		tipBounty(item)
@@ -466,7 +512,7 @@ function Main:Build()
 	f.tabs = {}
 	local prev
 	for _, key in ipairs(TAB_ORDER) do
-		local b = W.Button(f, TABS[key].label, 104, 26)
+		local b = W.Button(f, TABS[key].label, 88, 26)
 		if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", PAD, -50) end
 		b:SetScript("OnClick", function() Main:SetTab(key) end)
 		f.tabs[key] = b
@@ -762,6 +808,10 @@ function Main:UpdateActions()
 		f.add:SetLabel(L.EDIT_RANKS)
 		f.add:SetShown(officer)
 		f.add:SetEnabled(officer)
+	elseif tab == "u" then
+		f.add:SetLabel(L.REFRESH)
+		f.add:SetEnabled(session ~= nil)
+		f.add.tip = L.REFRESH_TIP
 	else
 		f.add:Hide()
 	end
@@ -777,7 +827,7 @@ function Main:UpdateStatus()
 		return
 	end
 	local players, guilds = session.store:Counts()
-	local peers = session.sync:PeerCount()
+	local peers = ns.Users:Summary().online - 1 -- not counting myself
 	f.status:SetText(L.STATUS_COUNTS:format(players, guilds) .. "   ·   "
 		.. (peers > 0 and L.STATUS_PEERS:format(peers) or L.STATUS_ALONE))
 
@@ -807,6 +857,8 @@ function Main:OnAdd()
 		ns.BountyDialog:Open({ scope = "p", name = ok and info and info.name or nil })
 	elseif tab == "m" then
 		ns.RanksDialog:Open()
+	elseif tab == "u" then
+		ns:Print(ns.Users:Ask() and L.MSG_USERS_ASKED or L.MSG_USERS_WAIT)
 	else
 		local ok, info = pcall(ns.Detect.Inspect, "target")
 		ns.AddDialog:Open("player", { info = ok and info or nil })
@@ -884,4 +936,5 @@ function Main:Init()
 	ns:Listen("SESSION_CHANGED", markStale)
 	ns:Listen("ROSTER_CHANGED", markStale)
 	ns:Listen("PROGRESS_CHANGED", markStale)
+	ns:Listen("USERS_CHANGED", markStale)
 end

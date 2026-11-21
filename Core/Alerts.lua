@@ -12,6 +12,7 @@ local FLAT = "Interface\\Buttons\\WHITE8x8"
 local SOUND_KOS = 8959 -- SOUNDKIT.RAID_WARNING
 local SOUND_GUILD = 3081 -- SOUNDKIT.TELL_MESSAGE
 local SOUND_ACHIEVEMENT = 888 -- SOUNDKIT.LEVEL_UP
+local SOUND_TARGETED = 8960 -- SOUNDKIT.READY_CHECK
 local SHOW_SECONDS = 7
 
 ---------------------------------------------------------------------------
@@ -22,7 +23,7 @@ local banner
 
 local function createBanner()
 	local f = CreateFrame("Frame", "BloodFeudAlertBanner", UIParent, "BackdropTemplate")
-	f:SetSize(480, 96)
+	f:SetSize(480, 110)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -150)
 	f:SetFrameStrata("HIGH")
 	f:SetBackdrop({ bgFile = FLAT, edgeFile = FLAT, edgeSize = 2 })
@@ -48,7 +49,7 @@ local function createBanner()
 	f.detail:SetPoint("RIGHT", f, "RIGHT", -12, 0)
 	f.detail:SetJustifyH("LEFT")
 	f.detail:SetWordWrap(true)
-	f.detail:SetMaxLines(3)
+	f.detail:SetMaxLines(4)
 	return f
 end
 
@@ -166,6 +167,70 @@ function Alerts:Bounty(seen, line)
 		ns:Print(L.ALERT_BOUNTY_CHAT:format(name, what ~= "" and (" (" .. what .. ")") or "", line))
 	end
 	play(SOUND_GUILD)
+	return true
+end
+
+--- What is known about an enemy, as short lines: Kill on Sight and why, how
+--- the guild and the player have fared against them, a bounty.
+function Alerts.DossierLines(about)
+	local lines = {}
+	if about.subject then
+		lines[#lines + 1] = Fmt.Color(Fmt.RED, L.TIP_TITLE) .. ": " .. Alerts.ReasonLine(about.subject)
+		if (about.kills or 0) + (about.deaths or 0) > 0 then
+			lines[#lines + 1] = L.TARGET_GUILD_SCORE:format(about.deaths, about.kills)
+		end
+	else
+		lines[#lines + 1] = Fmt.Color(Fmt.GREY, L.TARGET_NOT_LISTED)
+	end
+	if about.myKills + about.myDeaths > 0 then
+		lines[#lines + 1] = L.TARGET_MY_SCORE:format(about.myDeaths, about.myKills)
+	end
+	if about.bounty then lines[#lines + 1] = Fmt.Color(Fmt.GOLD, about.bounty) end
+	return lines
+end
+
+--- An enemy player near us just went into stealth, using `spell`.
+function Alerts:Stealth(seen, spell, about)
+	local hex = Fmt.ClassHex(seen.class)
+	local display = Names.Display(seen.name)
+	local name = hex and Fmt.Color(hex, display) or display
+	local what = Fmt.Describe(seen)
+	local guild = seen.guild and Fmt.Color(Fmt.AMBER, "<" .. seen.guild .. ">") or nil
+	local listed = about.subject and (Fmt.Color(Fmt.RED, L.TIP_TITLE) .. ": " .. Alerts.ReasonLine(about.subject)) or nil
+	if ns.settings.banner then
+		local line = what
+		if guild then line = (line ~= "" and (line .. " · ") or "") .. guild end
+		showBanner(L.ALERT_STEALTH_TITLE, 0.72, 0.55, 1, name .. (line ~= "" and ("  |cffe8e6df" .. line .. "|r") or ""),
+			L.ALERT_STEALTH_DETAIL:format(spell) .. (listed and ("\n" .. listed) or ""))
+	end
+	if ns.settings.chat then
+		ns:Print(L.ALERT_STEALTH_CHAT:format(name, what ~= "" and (" (" .. what .. ")") or "", spell)
+			.. (listed and (" " .. listed) or ""))
+	end
+	play(SOUND_KOS)
+	return true
+end
+
+--- An enemy player has just targeted us (or, with `pet`, our pet). `about`
+--- is Targeting:Dossier.
+function Alerts:Targeted(seen, about, pet)
+	local hex = Fmt.ClassHex(seen.class)
+	local display = Names.Display(seen.name)
+	local name = hex and Fmt.Color(hex, display) or display
+	local what = Fmt.Describe(seen)
+	local guild = seen.guild and Fmt.Color(Fmt.AMBER, "<" .. seen.guild .. ">") or nil
+	local lines = Alerts.DossierLines(about)
+	if ns.settings.banner then
+		local line = what
+		if guild then line = (line ~= "" and (line .. " · ") or "") .. guild end
+		showBanner(pet and L.ALERT_TARGET_PET_TITLE or L.ALERT_TARGET_TITLE, 1, 0.55, 0.2,
+			name .. (line ~= "" and ("  |cffe8e6df" .. line .. "|r") or ""), table.concat(lines, "\n"))
+	end
+	if ns.settings.chat then
+		ns:Print((pet and L.ALERT_TARGET_PET_CHAT or L.ALERT_TARGET_CHAT):format(name, what ~= "" and (" (" .. what .. ")") or "",
+			guild and (" " .. guild) or "") .. " " .. table.concat(lines, " · "))
+	end
+	if ns.settings.targetSound then play(SOUND_TARGETED) end
 	return true
 end
 

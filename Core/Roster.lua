@@ -8,7 +8,8 @@ local _, ns = ...
 
 local Util, Names = ns.Util, ns.Names
 
-local Roster = { members = {}, officers = {}, rankOfficer = {}, count = 0, ready = false }
+local Roster = { members = {}, officers = {}, rankOfficer = {}, online = {}, count = 0, total = 0, ready = false,
+	complete = false }
 ns.Roster = Roster
 
 local OFFICER_FLAG = 22 -- id of the "officer" checkbox in Blizzard_GuildControlUI
@@ -36,12 +37,15 @@ local function fromRosterApi()
 	local getInfo = _G.GetGuildRosterInfo
 	local loaded = 0
 	if not getInfo or type(total) ~= "number" then return 0 end
+	Roster.total = total
 	for i = 1, total do
-		local ok, name, _, rankIndex = pcall(getInfo, i)
+		local ok, name, _, rankIndex, _, _, _, _, _, online = pcall(getInfo, i)
 		if ok and type(rankIndex) == "number" then
 			local canon = Names.Canon(name)
 			if canon then
-				Roster.members[Names.Key(canon)] = rankIndex
+				local key = Names.Key(canon)
+				Roster.members[key] = rankIndex
+				if type(online) == "boolean" then Roster.online[key] = online end
 				loaded = loaded + 1
 			end
 		end
@@ -58,7 +62,9 @@ local function fromClubApi()
 	local okMembers, ids = pcall(club.GetClubMembers, clubId)
 	if not okMembers or type(ids) ~= "table" then return 0 end
 	local moderator = _G.Enum and _G.Enum.ClubRoleIdentifier and _G.Enum.ClubRoleIdentifier.Moderator or 3
+	local offline = _G.Enum and _G.Enum.ClubMemberPresence and _G.Enum.ClubMemberPresence.Offline or 3
 	local loaded = 0
+	Roster.total = #ids
 	for i = 1, #ids do
 		local okInfo, info = pcall(club.GetMemberInfo, clubId, ids[i])
 		if okInfo and type(info) == "table" then
@@ -68,6 +74,9 @@ local function fromClubApi()
 				local order = info.guildRankOrder
 				Roster.members[key] = type(order) == "number" and order - 1 or 9
 				if type(info.role) == "number" then Roster.officers[key] = info.role <= moderator end
+				if type(info.presence) == "number" and info.presence > 0 then
+					Roster.online[key] = info.presence ~= offline
+				end
 				loaded = loaded + 1
 			end
 		end
@@ -77,7 +86,7 @@ end
 
 --- Rebuild the member table from whatever the client offers.
 function Roster:Refresh()
-	self.members, self.officers, self.rankOfficer = {}, {}, {}
+	self.members, self.officers, self.rankOfficer, self.online, self.total = {}, {}, {}, {}, 0
 	local loaded = 0
 	if _G.IsInGuild and _G.IsInGuild() then
 		loaded = fromRosterApi()
@@ -85,11 +94,18 @@ function Roster:Refresh()
 	end
 	self.count = loaded
 	self.ready = loaded > 0
+	-- With "show offline members" off, the client may only hand out those who
+	-- are online: only a full roster can tell who has left the guild.
+	self.complete = loaded > 0 and loaded >= self.total
 	ns:Fire("ROSTER_CHANGED")
 end
 
---- Ask the server for a fresh roster; the result arrives as an event.
+--- Ask the server for a fresh roster; the result arrives as an event. The
+--- server answers at most every ten seconds, so asking more often is no use.
 function Roster:Request()
+	local now = GetTime()
+	if self.asked and now - self.asked < 12 then return end
+	self.asked = now
 	local guildInfo = _G.C_GuildInfo
 	if guildInfo and guildInfo.GuildRoster then
 		pcall(guildInfo.GuildRoster)

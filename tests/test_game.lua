@@ -41,7 +41,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(not ns.Roster.AmOfficer())
 	T.ok(SlashCmdList.BLOODFEUD, "slash command registered")
 	T.ok(world.iconRegistered, "minimap button registered")
-	T.eq(world.checkboxes, 13, "options page built")
+	T.eq(world.checkboxes, 17, "options page built")
 	T.eq(world.sliders, 2, "revenge sliders built")
 
 	-- Names in their three shapes
@@ -92,7 +92,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Advance(1)
 	local sightings = 0
 	for _, m in ipairs(world.sent) do
-		if m.prefix == "BloodFeudS" then sightings = sightings + 1 end
+		if m.prefix == "BloodFeudS" and m.text:sub(1, 1) == "S" then sightings = sightings + 1 end
 	end
 	T.eq(sightings, 1, "one sighting sent, not one per event")
 	T.ok(store:GetSeen("grimtusk-bloodaxe"), "last seen recorded")
@@ -1284,5 +1284,438 @@ T.test("game: an officer settles a debt from the board", function()
 	T.ok(ns:RemoveBounty(b2.id))
 	T.eq(#store:Debts(GetServerTime()), 1, "only the settled one is left")
 	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
+	BloodFeudDB = keep
+end)
+
+T.test("game: who in the guild runs the addon", function()
+	local keep = BloodFeudDB
+	BloodFeudDB = nil
+	local world = Stub.Install()
+	-- name, rank, online
+	world.roster = { { "Olaf-Stormborn", 3, true }, { "Kari-Frost", 5, true }, { "Per-Hauk", 5, false },
+		{ "Astrid-Vale", 1, true }, { "Ingrid-Dahl", 5, true }, { "Bjorn-Ironside", 0, false } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	local Codec, Users = ns.Codec, ns.Users
+	local function presences()
+		local n, last = 0, nil
+		for _, m in ipairs(world.sent) do
+			if m.prefix == "BloodFeudS" and m.text:sub(1, 1) == "P" then n, last = n + 1, m.text end
+		end
+		return n, last
+	end
+
+	-- Alone so far: the list is me
+	local sum, list = Users:Summary()
+	T.eq(sum.have, 1)
+	T.eq(sum.total, 6, "guild size from the roster")
+	T.ok(list[1].me)
+	T.eq(list[1].version, "test")
+
+	-- Shortly after login this copy says it is here
+	T.eq(presences(), 0)
+	world:Advance(Users.LOGIN_DELAY[2] + 6)
+	local count, frame = presences()
+	T.eq(count, 1, "one presence frame after login")
+	local mine = T.ok(Codec.DecodePresence(frame))
+	T.eq(mine.version, "test")
+	T.eq(mine.proto, Codec.PROTO)
+	T.ok(not mine.ask)
+
+	-- Guildmates report in: one current, one newer, and one too old to say so
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.3.1", Codec.PROTO), "Kari-Frost")
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.9.0", Codec.PROTO + 1), "Astrid-Vale")
+	world:Receive("BloodFeud", "H" .. ns.Util.Enc(2) .. "whatever an old hello looked like", "Per-Hauk")
+	world:Receive("BloodFeudS", "P1" .. string.rep("x", 200), "Ingrid-Dahl") -- garbage is not a user
+	world:Advance(1)
+	noErrors(world)
+	sum, list = Users:Summary()
+	T.eq(sum.have, 4, "me and three others")
+	T.eq(sum.online, 3, "the roster says Per is offline")
+	T.eq(sum.old, 1)
+	T.eq(sum.new, 1)
+	local by = {}
+	for _, u in ipairs(list) do by[u.key] = u end
+	T.eq(by["kari-frost"].version, "v0.3.1")
+	T.eq(by["kari-frost"].standing, "ok")
+	T.ok(by["kari-frost"].online)
+	T.eq(by["astrid-vale"].standing, "new")
+	T.eq(by["per-hauk"].version, "v0.2.0", "known by the protocol their sync speaks")
+	T.eq(by["per-hauk"].standing, "old")
+	T.ok(not by["per-hauk"].online)
+	T.eq(by["ingrid-dahl"], nil)
+	T.ok(list[#list].key == "per-hauk", "offline members come last")
+
+	-- Someone asks who is here: we answer, once
+	count = presences()
+	world:Advance(Users.REPLY_GAP)
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.3.1", Codec.PROTO, true), "Kari-Frost")
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.3.1", Codec.PROTO, true), "Ingrid-Dahl")
+	world:Advance(Users.REPLY_DELAY[2] + 2)
+	T.eq(presences(), count + 1, "one answer to two questions")
+	T.ok(Users:Summary().have == 5, "and Ingrid is on the list now")
+
+	-- The Addon tab, its summary and the Refresh button
+	local main = ns.MainFrame
+	main:Show("u")
+	world:Advance(1)
+	noErrors(world)
+	T.eq(#main.items, 5)
+	local notice = main.frame.notice:GetText()
+	T.ok(notice:find("5 of 6 guild members have Blood Feud", 1, true), notice)
+	T.ok(notice:find("4 online now", 1, true), notice)
+	T.ok(notice:find("1 need to update", 1, true), notice)
+	local text = {}
+	for _, row in ipairs(main.frame.rows) do
+		if row:IsShown() then
+			text[#text + 1] = row.cells[1]:GetText() .. " " .. row.cells[2]:GetText() .. " " .. row.cells[3]:GetText()
+			row.scripts.OnEnter(row)
+			row.scripts.OnLeave(row)
+		end
+	end
+	text = table.concat(text, "\n")
+	T.ok(text:find("Per Hauk v0.2.0", 1, true), text)
+	T.ok(text:find("needs to update", 1, true))
+	T.ok(text:find("newer than yours", 1, true))
+	T.ok(main.frame.status:GetText():find("3 guildmates online with the addon", 1, true), main.frame.status:GetText())
+	T.eq(main.frame.add.label:GetText(), "Refresh")
+	count = presences()
+	world:Advance(Users.ASK_GAP)
+	local chatFrom = #world.chat + 1
+	main.frame.add:Click()
+	local after, asked = presences()
+	T.eq(after, count + 1)
+	T.ok(Codec.DecodePresence(asked).ask, "Refresh asks everyone to report in")
+	main.frame.add:Click()
+	T.eq(presences(), after, "but not twice in a minute")
+	T.ok(chatHas(world, "Asked a moment ago", chatFrom))
+	chatFrom = #world.chat + 1
+	SlashCmdList.BLOODFEUD("users")
+	T.ok(chatHas(world, "5 of 6 guild members have Blood Feud, 4 online now.", chatFrom))
+	T.ok(chatHas(world, "Per Hauk  v0.2.0  offline · needs to update", chatFrom))
+	noErrors(world)
+
+	-- Per updates: his next presence says so
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.3.1", Codec.PROTO), "Per-Hauk")
+	world:Advance(1)
+	T.eq(Users:Summary().old, 0)
+	-- ...and if he is later heard syncing on another protocol, the version
+	-- we knew no longer holds
+	world:Receive("BloodFeud", "H" .. ns.Util.Enc(1) .. "an even older hello", "Per-Hauk")
+	world:Advance(1)
+	for _, u in ipairs(Users:List()) do
+		if u.key == "per-hauk" then T.eq(u.version, "v0.1.0", "not the v0.3.1 he said before") end
+	end
+	world:Receive("BloodFeudS", Codec.EncodePresence("v0.3.1", Codec.PROTO), "Per-Hauk")
+	world:Advance(1)
+
+	-- The list is remembered across sessions, and follows who is in the guild
+	local saved = BloodFeudDB
+	local world2 = Stub.Install()
+	world2.roster = { { "Olaf-Stormborn", 3, true }, { "Kari-Frost", 5, false }, { "Per-Hauk", 5, true } } -- two have left
+	BloodFeudDB = saved
+	local ns2 = world2:LoadAddon(T.root)
+	world2:Fire("ADDON_LOADED", "BloodFeud")
+	world2:Fire("PLAYER_LOGIN")
+	world2:Advance(3)
+	local sum2, list2 = ns2.Users:Summary()
+	T.eq(sum2.have, 3, "Kari and Per remembered; Astrid and Ingrid left the guild")
+	T.eq(sum2.total, 3)
+	T.eq(sum2.online, 2, "me and Per")
+	by = {}
+	for _, u in ipairs(list2) do by[u.key] = u end
+	T.ok(by["kari-frost"] and not by["kari-frost"].online)
+	-- ...and forgets those not heard from in two months
+	world2.epoch = world2.epoch + (ns2.Users.KEEP_DAYS + 1) * 86400
+	T.eq(ns2.Users:Summary().have, 1)
+	T.eq(#world2.errors, 0, table.concat(world2.errors, " | "))
+	BloodFeudDB = keep
+end)
+
+T.test("game: an enemy who targets you", function()
+	local keep = BloodFeudDB
+	BloodFeudDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	local Codec, Targeting = ns.Codec, ns.Targeting
+	local function receive(rec, sender)
+		world:Receive("BloodFeud", (Codec.EncodeUpdate(Codec.Bucket(rec.id), 1, 1, { rec.wire })), sender)
+		world:Advance(1)
+	end
+	local MORG = { name = "Morgash", surname = "Gorefist", guid = "Player-1-0000EEEE", isPlayer = true, enemy = true,
+		faction = "Horde", class = 1, race = 2, level = 60, guild = "Hostile Takeover" }
+	local ZUL = { name = "Zulrakka", surname = "Venomtongue", guid = "Player-1-0000FFFF", isPlayer = true, enemy = true,
+		faction = "Horde", class = 8, race = 8, level = 54 }
+
+	-- Two enemies on screen, neither looking at me
+	world.units.nameplate1, world.units.nameplate2 = MORG, ZUL
+	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+	ZUL.targets = MORG -- busy with someone else
+	world:Advance(2)
+	noErrors(world)
+	T.eq(Targeting:Count(), 0)
+	T.ok(not chatHas(world, "Targeting you"))
+
+	-- Morgash targets me: alert, sound, radar and nameplate
+	local chatFrom = #world.chat + 1
+	MORG.targets = "player"
+	world:Advance(1)
+	noErrors(world)
+	T.ok(Targeting:Is("morgash-gorefist"))
+	T.eq(Targeting:Count(), 1)
+	T.ok(chatHas(world, "Targeting you:|r |cfffff468Morgash Gorefist|r (60 Orc Rogue) |cffffb347<Hostile Takeover>|r.", chatFrom),
+		world.chat[#world.chat])
+	T.ok(chatHas(world, "Not on the list", chatFrom), "says he is not Kill on Sight")
+	T.ok(BloodFeudAlertBanner:IsShown())
+	T.eq(BloodFeudAlertBanner.title:GetText(), "TARGETING YOU")
+	T.eq(world.lastSound, 8960)
+	local visible = ns.Radar:Visible()
+	T.eq(visible[1].info.key, "morgash-gorefist", "whoever has me targeted is first on the radar")
+	T.ok(visible[1].targeting and not visible[2].targeting)
+	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("ON YOU", 1, true))
+	T.ok(_G.BloodFeudRadarFrame.title:GetText():find("1 on you", 1, true), _G.BloodFeudRadarFrame.title:GetText())
+	T.ok(ns.Nameplates.aims.nameplate1, "a cross on his nameplate")
+	T.eq(ns.Nameplates.aims.nameplate2, nil)
+	local row = _G.BloodFeudRadarFrame.rows[1]
+	row.scripts.OnEnter(row)
+	row.scripts.OnLeave(row)
+	noErrors(world)
+
+	-- He looks away and back within the cooldown: marked again, but no new alert
+	chatFrom = #world.chat + 1
+	MORG.targets = nil
+	world:Advance(1)
+	T.eq(Targeting:Count(), 0)
+	T.eq(ns.Nameplates.aims.nameplate1, nil, "the cross comes off")
+	MORG.targets = "player"
+	world:Advance(1)
+	T.ok(Targeting:Is("morgash-gorefist"))
+	T.ok(not chatHas(world, "Targeting you", chatFrom), "no repeat within the cooldown")
+
+	-- Now he is Kill on Sight, with a history: the next alert says so
+	MORG.targets = nil
+	world:Advance(1)
+	SlashCmdList.BLOODFEUD("add morgash-gorefist Ganked the whole raid")
+	local score = Codec.Seal({ k = "c", key = "morgash-gorefist", author = "Kari-Frost", ts = GetServerTime(), kills = 3,
+		deaths = 7 })
+	receive(score, "Kari-Frost")
+	world.recap = { { sourceGUID = "Player-1-0000EEEE", timestamp = 77 } }
+	world:Fire("PLAYER_DEAD")
+	world:Advance(Targeting.COOLDOWN + 2)
+	chatFrom = #world.chat + 1
+	MORG.targets = "player"
+	world:Advance(1)
+	noErrors(world)
+	T.ok(chatHas(world, "Targeting you", chatFrom), "alerts again after the cooldown")
+	T.ok(chatHas(world, "Kill on Sight|r: “Ganked the whole raid”", chatFrom), "says he is Kill on Sight, and why")
+	T.ok(chatHas(world, "Has killed guildmates 8 times, killed by the guild 3 times", chatFrom), "the guild's score against him")
+	T.ok(chatHas(world, "Has killed you 1 times, you them 0 times", chatFrom), "and my own")
+	local about = Targeting:Dossier(ns.Detect.Inspect("nameplate1"))
+	T.eq(about.deaths, 8)
+	T.eq(about.kills, 3)
+	T.eq(about.myDeaths, 1)
+	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("KoS", 1, true), "Kill on Sight still shows next to ON YOU")
+
+	-- Zulrakka targets me while I have her targeted myself: marked, no alert
+	world.units.target = ZUL
+	world:Fire("PLAYER_TARGET_CHANGED")
+	chatFrom = #world.chat + 1
+	ZUL.targets = "player"
+	world:Advance(1)
+	T.ok(Targeting:Is("zulrakka-venomtongue"))
+	T.ok(not chatHas(world, "Targeting you", chatFrom), "no alert about my own target")
+	T.eq(Targeting:Count(), 2)
+	world.units.target = nil
+
+	-- When the client withholds the comparison, their target's identity still tells
+	ZUL.targets, MORG.targets = nil, nil
+	world:Advance(1)
+	T.eq(Targeting:Count(), 0)
+	world.compareSecret = true
+	ZUL.targets = "player"
+	world:Advance(1)
+	T.ok(Targeting:Is("zulrakka-venomtongue"), "found through the GUID of her target")
+	T.eq(ns.Radar:Visible()[1].info.key, "zulrakka-venomtongue", "on the radar she now comes before the Kill on Sight")
+	ZUL.targets = MORG
+	world:Advance(1)
+	T.ok(not Targeting:Is("zulrakka-venomtongue"))
+	world.compareSecret = false
+	noErrors(world)
+
+	-- Out of sight: we can no longer say they target us
+	MORG.targets = "player"
+	world:Advance(1)
+	T.ok(Targeting:Is("morgash-gorefist"))
+	world.units.nameplate1 = nil
+	world:Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+	world:Advance(Targeting.LOST + 1)
+	T.ok(not Targeting:Is("morgash-gorefist"))
+	T.eq(ns.Nameplates.aims.nameplate1, nil)
+
+	-- Alerts off: still marked, but quiet
+	ns.settings.targetAlerts = false
+	world:Advance(Targeting.COOLDOWN + 2)
+	chatFrom = #world.chat + 1
+	ZUL.targets = "player"
+	world:Advance(1)
+	T.ok(Targeting:Is("zulrakka-venomtongue"))
+	T.ok(not chatHas(world, "Targeting you", chatFrom))
+	ns.settings.targetAlerts = true
+
+	-- Not in instances
+	world.instance = "pvp"
+	world:Fire("PLAYER_ENTERING_WORLD")
+	world:Advance(1)
+	T.eq(Targeting:Count(), 0)
+	T.ok(Targeting.stats.checks > 0 and Targeting.stats.hits >= 4)
+	noErrors(world)
+	BloodFeudDB = keep
+end)
+
+T.test("game: an enemy on your pet, and one going into stealth", function()
+	local keep = BloodFeudDB
+	BloodFeudDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	local Targeting, Stealth = ns.Targeting, ns.Stealth
+	local MORG = { name = "Morgash", surname = "Gorefist", guid = "Player-1-0000EEEE", isPlayer = true, enemy = true,
+		faction = "Horde", class = 1, race = 2, level = 60, guild = "Hostile Takeover" }
+	world.units.nameplate1 = MORG
+	world.units.pet = { name = "Fang", guid = "Pet-0-00001234", isPlayer = false }
+	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	world:Advance(1)
+
+	-- He goes for the pet
+	local chatFrom = #world.chat + 1
+	MORG.targets = "pet"
+	world:Advance(0.3)
+	local on, what = Targeting:Is("morgash-gorefist")
+	T.ok(on, "noticed within a few tenths of a second")
+	T.eq(what, "pet")
+	T.eq(Targeting:Count(), 0, "not counted as on me")
+	T.ok(chatHas(world, "Targeting your pet:|r |cfffff468Morgash Gorefist|r", chatFrom))
+	T.eq(BloodFeudAlertBanner.title:GetText(), "TARGETING YOUR PET")
+	world:Advance(1)
+	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("ON PET", 1, true))
+	T.ok(ns.Nameplates.aims.nameplate1, "marked on the nameplate too")
+
+	-- ...then for me: that is news again, cooldown or not
+	chatFrom = #world.chat + 1
+	MORG.targets = "player"
+	world:Advance(0.3)
+	T.eq(select(2, Targeting:Is("morgash-gorefist")), "me")
+	T.eq(Targeting:Count(), 1)
+	T.ok(chatHas(world, "Targeting you:", chatFrom))
+
+	-- Pet alerts can be switched off on their own
+	ns.settings.targetPet = false
+	MORG.targets = "pet"
+	world:Advance(0.3)
+	T.ok(not Targeting:Is("morgash-gorefist"), "with the option off, the pet does not count")
+	ns.settings.targetPet = true
+	-- and the pet is also found when the client withholds comparisons
+	world.compareSecret = true
+	world:Advance(0.3)
+	T.eq(select(2, Targeting:Is("morgash-gorefist")), "pet")
+	world.compareSecret = false
+	MORG.targets = nil
+	world:Advance(0.3)
+	T.eq(Targeting:Is("morgash-gorefist"), false)
+	noErrors(world)
+
+	-- An ordinary spell is nothing; Vanish is
+	chatFrom = #world.chat + 1
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-1", 133)
+	T.ok(not chatHas(world, "Stealth:", chatFrom))
+	world.units.target = MORG
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-2", 1856)
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "Cast-2", 1856) -- the same cast, seen through my target
+	world.units.target = nil
+	noErrors(world)
+	T.ok(chatHas(world, "Stealth:|r |cfffff468Morgash Gorefist|r (60 Orc Rogue) used Vanish near you.", chatFrom))
+	T.eq(Stealth.stats.hits, 1, "one alert for one cast")
+	T.eq(BloodFeudAlertBanner.title:GetText(), "STEALTH")
+	T.eq(world.lastSound, 8959)
+	-- his nameplate goes, the radar remembers him as stealthed
+	world.units.nameplate1 = nil
+	world:Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+	world:Advance(1)
+	local entry = ns.Radar:Visible()[1]
+	T.ok(entry.stealth, "marked on the radar")
+	T.eq(entry.stealthSpell, "Vanish")
+	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("STEALTH", 1, true))
+	local row = _G.BloodFeudRadarFrame.rows[1]
+	row.scripts.OnEnter(row)
+	row.scripts.OnLeave(row)
+	-- seen again: no longer stealthed
+	world:Advance(3)
+	world.units.nameplate1 = MORG
+	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	T.ok(not ns.Radar:Visible()[1].stealth)
+	noErrors(world)
+
+	-- A listed player's stealth alert says they are Kill on Sight
+	SlashCmdList.BLOODFEUD("add morgash-gorefist Opens from stealth")
+	world:Advance(Stealth.COOLDOWN + 1)
+	chatFrom = #world.chat + 1
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-3", 1784)
+	T.ok(chatHas(world, "used Stealth near you. |cffff8a80Kill on Sight|r: “Opens from stealth”", chatFrom))
+
+	-- What is ignored: a withheld spell, my own casts, friendly players
+	world:Advance(Stealth.COOLDOWN + 1)
+	chatFrom = #world.chat + 1
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-4", Stub.SECRET)
+	T.eq(Stealth.stats.secret, 1)
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-5", 1784)
+	world.units.nameplate5 = { name = "Bob", surname = "Friendly", guid = "Player-1-00009999", isPlayer = true,
+		enemy = false, faction = "Alliance", class = 4, race = 1, level = 60 }
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate5", "Cast-6", 5215)
+	T.ok(not chatHas(world, "Stealth:", chatFrom))
+	noErrors(world)
+
+	-- Alerts off: quiet, but still on the radar
+	ns.settings.stealthAlerts = false
+	chatFrom = #world.chat + 1
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-7", 5215)
+	T.ok(not chatHas(world, "Stealth:", chatFrom))
+	T.eq(ns.Radar.list["morgash-gorefist"].stealthSpell, "Prowl")
+	ns.settings.stealthAlerts = true
+
+	-- Not in instances
+	world:Advance(Stealth.COOLDOWN + 1)
+	world.instance = "pvp"
+	world:Fire("PLAYER_ENTERING_WORLD")
+	chatFrom = #world.chat + 1
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-8", 1784)
+	T.ok(not chatHas(world, "Stealth:", chatFrom))
+	noErrors(world)
+
+	-- A client in another language: the spells are known by what it calls them
+	BloodFeudDB = nil
+	local world2 = Stub.Install()
+	world2.locale = "deDE"
+	world2.spells[1784] = "Verstohlenheit"
+	world2.roster = { { "Olaf-Stormborn", 3 } }
+	local ns2 = world2:LoadAddon(T.root)
+	world2:Fire("ADDON_LOADED", "BloodFeud")
+	world2:Fire("PLAYER_LOGIN")
+	world2:Advance(3)
+	world2.units.nameplate1 = MORG
+	world2:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	world2:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-1", 1784)
+	T.ok(chatHas(world2, "used Verstohlenheit near you"), "found by its local name")
+	T.eq(#world2.errors, 0, table.concat(world2.errors, " | "))
+	T.eq(ns2.Stealth:Spell(133), nil)
 	BloodFeudDB = keep
 end)

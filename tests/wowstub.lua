@@ -124,7 +124,8 @@ function Stub.Install()
 	G.GetNumGuildMembers = function() return #world.roster end
 	G.GetGuildRosterInfo = function(i)
 		local m = world.roster[i]
-		if m then return m[1], "Rank" .. m[2], m[2] end
+		-- name, rank name, rank index, level, class, zone, note, officer note, online
+		if m then return m[1], "Rank" .. m[2], m[2], 60, "Class", "Zone", "", "", m[3] end
 	end
 	G.GuildControlGetNumRanks = function() return 6 end
 	G.C_GuildInfo = {
@@ -139,12 +140,29 @@ function Stub.Install()
 	}
 
 	-- Units
+	-- A unit's `targets` field says who it has targeted: "player", another
+	-- token, or a unit table. "<unit>target" resolves through it.
 	local function unitOf(token)
 		if token == "player" then
 			return { name = world.me.first, surname = world.me.surname, guid = "Player-1-00000001", isPlayer = true,
 				faction = "Alliance", class = 1, race = 1, level = 60 }
 		end
+		local base = type(token) == "string" and token:match("^(.+)target$")
+		if base then
+			local unit = unitOf(base)
+			local target = unit and unit.targets
+			if target == nil then return nil end
+			if type(target) == "table" then return target end
+			return unitOf(target)
+		end
 		return world.units[token]
+	end
+	-- world.compareSecret: the client withholds unit comparisons.
+	G.UnitIsUnit = function(a, b)
+		if world.compareSecret then return SECRET end
+		local ua, ub = unitOf(a), unitOf(b)
+		if not ua or not ub then return false end
+		return ua == ub or (ua.guid ~= nil and ua.guid == ub.guid)
 	end
 	local function field(token, key)
 		local u = unitOf(token)
@@ -274,7 +292,10 @@ function Stub.Install()
 	G.C_RestrictedActions = { IsAddOnRestrictionActive = function() return false end }
 	G.C_PlayerInfo = { ShouldDisplaySurname = function() return true end }
 	G.GetBuildInfo = function() return "1.60.1", "70959", "Nov 1 2026", 16001 end
-	G.GetLocale = function() return "enUS" end
+	G.GetLocale = function() return world.locale or "enUS" end
+	-- world.spells: spell id -> the name this client has for it
+	world.spells = { [1784] = "Stealth", [1856] = "Vanish", [5215] = "Prowl", [58984] = "Shadowmeld", [133] = "Fireball" }
+	G.C_Spell = { GetSpellName = function(id) return world.spells[id] end }
 	G.GetNormalizedRealmName = function() return nil end
 	G.RegionalUniqueNamesEnabled = function() return true end
 	G.WOW_PROJECT_ID = 18

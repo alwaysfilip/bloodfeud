@@ -1,5 +1,24 @@
 # Blood Feud
 
+## 0.3.1
+
+- Targeting you: an alert when an enemy player targets you, with their class,
+  level, race and guild, whether they are Kill on Sight and why, how many
+  times they have killed your guildmates and you, and any bounty on them.
+  They are marked "ON YOU" on the radar, come first there, and get a red cross
+  on their nameplate. Works for enemies with a nameplate, your target and
+  your focus. Can be turned off in the options, as can its sound.
+- The same when an enemy targets your pet ("ON PET"), with its own switch.
+- Stealth alert: when an enemy player you can see uses Stealth, Vanish, Prowl
+  or Shadowmeld, you get an alert, and the radar marks them as stealthed for
+  as long as it remembers them. Can be turned off in the options.
+- New Addon tab: which guildmates run Blood Feud, on which version, who is
+  online, and who needs to update before they can sync with you. `/feud users`
+  prints the same in chat, and Refresh asks everyone online to report in.
+- The "guildmates online with the addon" count in the window is now accurate.
+- Syncs with 0.3.0. Guildmates on 0.3.0 or older show up once their copy has
+  synced something, with the version worked out from that.
+
 ## 0.3.0
 
 - Gold bounties: a bounty can carry gold, which goes to the first guildmate

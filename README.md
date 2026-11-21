@@ -42,6 +42,17 @@ that player themselves.
   each other's rank in the Ranks tab and in tooltips.
 - **Achievements.** 31 of them, from First Blood to Clan Breaker. Your guild is
   told when you earn one, and can see which ones you have.
+- **Targeting you.** When an enemy player targets you or your pet, Blood Feud
+  tells you who it is: class, level, race and guild, whether they are Kill on
+  Sight and why, how many times they have killed your guildmates and you, and
+  any bounty on them. They are marked on the radar and with a red cross on
+  their nameplate for as long as it lasts.
+- **Stealth alert.** When an enemy player you can see uses Stealth, Vanish,
+  Prowl or Shadowmeld, you are told, and the radar keeps them marked as
+  stealthed.
+- **Who has the addon.** The Addon tab lists the guildmates who run Blood
+  Feud, their version, who is online, and who needs to update before they can
+  sync with you.
 
 ## Commands
 
@@ -59,6 +70,7 @@ that player themselves.
 | `/feud bounty <Guild Name> [points] [50g] [note]` | Post a bounty on a guild |
 | `/feud bounties` | Open the bounty board |
 | `/feud debts` | Bounty gold you owe and are owed |
+| `/feud users` | Which guildmates run Blood Feud, and on which version |
 | `/feud rank` | Your rank, and the guild's ranks |
 | `/feud rank set <n> <kills> <title>` | Change a rank (officers) |
 | `/feud ach` | Your achievements |
@@ -101,6 +113,12 @@ works within them rather than around them:
   you. It does not do so inside instances, so nothing is counted there. A
   kill only counts when it was your (or your pet's) killing blow. Ranks,
   bounty claims and most achievements build on those kills.
+- **"Targeting you" only covers enemies the game shows you.** An addon can
+  ask who an enemy has targeted only for enemies with a nameplate, your own
+  target and your focus. Someone out of sight, or in stealth, is not noticed.
+- **The stealth alert sees the moment, not the rogue.** It fires when an
+  enemy you can see goes into stealth. Someone who was already stealthed when
+  they came near cannot be detected by any addon.
 - **The radar is a list, not a map.** Addons cannot read where an enemy
   stands, so the radar shows who the game has shown you in the last minute,
   not their position.
@@ -124,8 +142,9 @@ always undo it.
 
 ## Privacy
 
-Blood Feud only talks on your guild's hidden addon channel. It sends the
-list entries, what it saw of a listed player (class, level, guild), your
+Blood Feud only talks on your guild's hidden addon channel. It tells your
+guild that you run the addon and which version, and it sends the list
+entries, what it saw of a listed player (class, level, guild), your
 kill and death count against listed players, your total kills, deaths, best
 streak, bounty points and achievements, the bounties you post and claim,
 whether the gold of a won bounty was sent and received, and sightings of

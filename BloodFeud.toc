@@ -1,0 +1,49 @@
+## Interface: 16001
+## Title: Blood Feud
+## Notes: Guild-shared Kill on Sight list. Mark an enemy player and your whole guild is alerted when they meet them.
+## Author: alwaysfilip
+## Version: @project-version@
+## SavedVariables: BloodFeudDB
+## IconTexture: Interface\TargetingFrame\UI-RaidTargetingIcon_8
+## Category: PvP
+## AddonCompartmentFunc: BloodFeud_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: BloodFeud_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: BloodFeud_OnAddonCompartmentLeave
+## X-License: MIT
+## X-Website: https://github.com/alwaysfilip/bloodfeud
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceComm-3.0\ChatThrottleLib.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+Core\Init.lua
+Locales\enUS.lua
+Core\Util.lua
+Core\Codec.lua
+Core\Store.lua
+Core\Permissions.lua
+Core\Sync.lua
+Core\Names.lua
+Core\Roster.lua
+Core\Format.lua
+Core\Comm.lua
+Core\Alerts.lua
+Core\Detect.lua
+Core\Sightings.lua
+Core\Actions.lua
+Core\Feuds.lua
+Core\Probe.lua
+
+UI\Widgets.lua
+UI\MainFrame.lua
+UI\AddDialog.lua
+UI\Revenge.lua
+UI\Tooltip.lua
+UI\UnitMenu.lua
+UI\Nameplates.lua
+UI\Minimap.lua
+UI\Options.lua
+
+Core\Boot.lua

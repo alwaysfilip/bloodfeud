@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Blood Feud: crossed swords behind a drop of blood. Original artwork, no game assets. -->
+  <rect width="400" height="400" fill="#121419"/>
+  <rect x="13" y="13" width="374" height="374" fill="none" stroke="#6b5628" stroke-width="4"/>
+  <rect x="24" y="24" width="352" height="352" fill="none" stroke="#2a2416" stroke-width="2"/>
+
+  <defs>
+    <g id="sword">
+      <polygon points="200,30 214,62 214,288 186,288 186,62" fill="#e3c26a"/>
+      <polygon points="200,30 214,62 214,288 200,288" fill="#c9a650"/>
+      <rect x="197.500" y="72" width="5" height="206" fill="#8c6c2c"/>
+      <rect x="152" y="286" width="96" height="18" rx="7" fill="#b08d3c"/>
+      <rect x="152" y="295" width="96" height="9" rx="4.500" fill="#8c6c2c"/>
+      <rect x="189" y="304" width="22" height="48" fill="#5e3f22"/>
+      <rect x="189" y="314" width="22" height="5" fill="#3d2815"/>
+      <rect x="189" y="327" width="22" height="5" fill="#3d2815"/>
+      <rect x="189" y="340" width="22" height="5" fill="#3d2815"/>
+      <circle cx="200" cy="364" r="15" fill="#b08d3c"/>
+      <circle cx="200" cy="364" r="6.500" fill="#8c6c2c"/>
+    </g>
+  </defs>
+  <use href="#sword" transform="rotate(45 200 200)"/>
+  <use href="#sword" transform="rotate(-45 200 200)"/>
+
+  <!-- the drop, with a dark rim so it reads against the blades -->
+  <path d="M200 104 C 230 154, 268 190, 268 236 A 68 68 0 0 1 132 236 C 132 190, 170 154, 200 104 Z"
+        fill="#c8362b" stroke="#121419" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M200 104 C 230 154, 268 190, 268 236 A 68 68 0 0 1 200 304 Z" fill="#9a241b"/>
+  <path d="M200 104 C 230 154, 268 190, 268 236 A 68 68 0 0 1 132 236 C 132 190, 170 154, 200 104 Z"
+        fill="none" stroke="#121419" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M158 232 a44 44 0 0 0 20 38" fill="none" stroke="#ff9a8f" stroke-width="10" stroke-linecap="round"/>
+</svg>

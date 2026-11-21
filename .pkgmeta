@@ -1,0 +1,28 @@
+package-as: BloodFeud
+
+externals:
+  Libs/LibStub:
+    url: https://github.com/WoWUIDev/Ace3
+    path: LibStub
+  Libs/CallbackHandler-1.0:
+    url: https://github.com/WoWUIDev/Ace3
+    path: CallbackHandler-1.0
+  Libs/AceComm-3.0:
+    url: https://github.com/WoWUIDev/Ace3
+    path: AceComm-3.0
+  Libs/LibDataBroker-1.1:
+    url: https://github.com/tekkub/libdatabroker-1-1
+  Libs/LibDBIcon-1.0:
+    url: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+
+ignore:
+  - tests
+  - scripts
+  - docs
+  - README.md
+  - .luacheckrc
+  - .github
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

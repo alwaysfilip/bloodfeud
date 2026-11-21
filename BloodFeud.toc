@@ -11,6 +11,7 @@
 ## AddonCompartmentFuncOnLeave: BloodFeud_OnAddonCompartmentLeave
 ## X-License: MIT
 ## X-Website: https://github.com/alwaysfilip/bloodfeud
+## X-Curse-Project-ID: 1821147
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua

@@ -57,6 +57,32 @@ function Fmt.ClassHex(classID)
 		floor((color.b or 1) * 255 + 0.5))
 end
 
+--- Class token ("ROGUE") for a class id, or nil.
+function Fmt.ClassFile(classID)
+	local info = classInfo(classID)
+	return info and info.classFile or nil
+end
+
+--- Class colour as r, g, b (0..1) for a class id, or nil.
+function Fmt.ClassRGB(classID)
+	local hex = Fmt.ClassHex(classID)
+	if type(hex) ~= "string" or #hex < 8 then return nil end
+	local r, g, b = tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16), tonumber(hex:sub(7, 8), 16)
+	if not (r and g and b) then return nil end
+	return r / 255, g / 255, b / 255
+end
+
+--- "Orc Rogue": race and class without the level; "" when neither is known.
+function Fmt.Kind(facts)
+	if not facts then return "" end
+	local parts = {}
+	local race = Fmt.RaceName(facts.race)
+	if race then parts[#parts + 1] = race end
+	local class = Fmt.ClassName(facts.class)
+	if class then parts[#parts + 1] = class end
+	return table.concat(parts, " ")
+end
+
 --- Display name of a listed player, coloured by class when it is known.
 function Fmt.PlayerName(subject)
 	local text = Names.Display(subject.name)

@@ -287,6 +287,7 @@ function Stub.Install()
 		GetRaceInfo = function(id) return { raceName = "Orc", raceID = id } end,
 	}
 	G.RAID_CLASS_COLORS = { ROGUE = { r = 1, g = 0.96, b = 0.41, colorStr = "fffff468" } }
+	G.CLASS_ICON_TCOORDS = { ROGUE = { 0.49609375, 0.7421875, 0, 0.25 } }
 	G.C_NamePlate = { GetNamePlateForUnit = function(token) return world.units[token] and frame("NamePlate") or nil end }
 	-- world.addons: other addons that are loaded; world.disabled: switched off by us
 	world.addons, world.disabled = {}, {}

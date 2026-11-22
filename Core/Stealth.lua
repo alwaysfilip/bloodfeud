@@ -84,7 +84,8 @@ function Stealth:OnCast(unit, _, spellID)
 	stats.hits = stats.hits + 1
 	if ns.Radar then ns.Radar:Stealthed(info, spell) end
 	if ns.settings.stealthAlerts then
-		ns.Alerts:Stealth(info, spell, ns.Targeting and ns.Targeting:Dossier(info) or { myKills = 0, myDeaths = 0 })
+		ns.Alerts:Stealth(info, spell, ns.Targeting and ns.Targeting:Dossier(info) or { myKills = 0, myDeaths = 0 },
+			spellID)
 	end
 end
 

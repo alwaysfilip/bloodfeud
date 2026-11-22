@@ -35,7 +35,9 @@ What has to be understood in the middle of a fight is said plainly:
   shows how many of you have a score to settle.
 - **Alert on sight.** A banner, a sound and a chat line when someone from the
   hit list shows up as a nameplate, your target, your focus or under your
-  mouse.
+  mouse. The banner is built like a unit frame: a portrait with the class
+  icon and level, the name on a bar in the class colour, and tiles for the
+  guild's record against them and any contract.
 - **Marked in the world.** A skull above the nameplate, and the intel, who
   sanctioned it and where they were last seen in the tooltip.
 - **Right-click to add.** "Add to the hit list (Kill on Sight)" in the menu of
@@ -51,8 +53,10 @@ What has to be understood in the middle of a fight is said plainly:
   minutes, Business Meeting offers to put them on the hit list. Both numbers
   can be changed in the options.
 - **Radar.** A small window listing the enemy players around you, Kill on
-  Sight and players with a contract on them first. Shift-click to add them,
-  right-click to open a contract on them.
+  Sight and players with a contract on them first. Each row is a class icon
+  and a bar that drains as the sighting gets older, with icons for what is
+  known about them. Shift-click to add them, right-click to open a contract
+  on them.
 - **Contracts.** Anyone can open a contract on an enemy player or a whole
   guild. Points go to every guildmate who lands a killing blow, and the board
   shows who has collected.

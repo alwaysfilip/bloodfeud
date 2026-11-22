@@ -310,8 +310,8 @@ function Progress:OnKill(info, key, listed, e)
 
 	if ns.Bounties then ns.Bounties:OnKill(info, key, st) end
 	if ns.settings.dealBanner and ns.Alerts and ns.Alerts.Deal then
-		local _, nextTier = Progress.RankFor(st.kills, Progress.Ladder(s and s.store))
-		ns.Alerts:Deal(info, st, nextTier)
+		local tier, nextTier = Progress.RankFor(st.kills, Progress.Ladder(s and s.store))
+		ns.Alerts:Deal(info, st, nextTier, tier)
 	end
 	celebrate(self:Check(st))
 	self:Publish()

@@ -1,4 +1,7 @@
 -- The radar window: a small, movable list of the enemy players around you.
+-- Each row is the class icon and a bar in the class colour that drains as
+-- the sighting gets older, with icons for Kill on Sight, a contract, a
+-- hostile guild and stealth, and the level at the end.
 -- Shift-click a row to put them on the list, right-click to post a bounty.
 local _, ns = ...
 
@@ -8,18 +11,30 @@ local L = ns.L
 local RadarUI = {}
 ns.RadarUI = RadarUI
 
-local WIDTH, ROW_H, ROWS = 300, 20, 10
+local WIDTH, ROW_H, ROWS = 300, 22, 10
 local TOP = 30
 local SOUND_NEW = 3175 -- SOUNDKIT.MAP_PING
 
 local ON_YOU = "ffff8c33"
-local STEALTH = "ffb88cff"
 
-local TAGS = {
-	[3] = { L.RADAR_KOS, "ffff8a80" },
-	[2] = { L.RADAR_BOUNTY, "fff0c75e" },
-	[1] = { L.RADAR_GUILD, "ffffb347" },
-}
+--- The status of an enemy as icons: one for why they matter (Kill on Sight,
+--- a contract, a hostile guild), one for stealth, and words for the thing
+--- that cannot wait: that they have you targeted.
+local function statusText(entry)
+	local parts = {}
+	if entry.tag == 3 then
+		parts[#parts + 1] = W.Inline("skull", 12, 255, 138, 128)
+	elseif entry.tag == 2 then
+		parts[#parts + 1] = W.Inline("coin", 12)
+	elseif entry.tag == 1 then
+		parts[#parts + 1] = W.Inline("guild", 12, 255, 179, 71)
+	end
+	if entry.stealth and not entry.plate then parts[#parts + 1] = W.Inline("stealth", 13, 199, 181, 255) end
+	if entry.targeting then
+		parts[#parts + 1] = Fmt.Color(ON_YOU, entry.targeting == "pet" and L.RADAR_ON_PET or L.RADAR_ON_YOU)
+	end
+	return table.concat(parts, " ")
+end
 
 local function rowTooltip(row)
 	local entry = row.entry
@@ -55,26 +70,46 @@ local function createRow(parent, i)
 	row:SetPoint("TOPLEFT", 8, -(TOP + (i - 1) * ROW_H))
 	row:SetPoint("RIGHT", parent, "RIGHT", -8, 0)
 	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-	row.bg = row:CreateTexture(nil, "BACKGROUND")
-	row.bg:SetAllPoints()
-	row.bg:SetTexture(W.FLAT)
-	row.bg:SetVertexColor(1, 1, 1, 0)
-	row.name = W.Label(row, "GameFontHighlightSmall")
-	row.name:SetPoint("LEFT", 4, 0)
-	row.name:SetWidth(150)
+	row.class = row:CreateTexture(nil, "ARTWORK")
+	row.class:SetSize(18, 18)
+	row.class:SetPoint("LEFT", 0, 0)
+
+	-- The bar: full while they are in view, empty when the sighting is about to lapse
+	local bar = CreateFrame("StatusBar", nil, row, "BackdropTemplate")
+	row.bar = bar
+	bar:SetPoint("LEFT", 22, 0)
+	bar:SetPoint("RIGHT", -26, 0)
+	bar:SetHeight(18)
+	bar:EnableMouse(false)
+	W.Skin(bar, { 0, 0, 0 }, W.C.steel)
+	bar:SetStatusBarTexture(W.FLAT)
+	bar:SetMinMaxValues(0, 1)
+	row.tag = W.CapsFont(W.Label(bar, "GameFontHighlightSmall"), 11)
+	row.tag:SetPoint("RIGHT", -5, 0)
+	row.tag:SetJustifyH("RIGHT")
+	-- The icons sit on a dark tray, so they read whatever the bar's colour
+	row.tray = bar:CreateTexture(nil, "OVERLAY")
+	row.tray:SetTexture(W.FLAT)
+	row.tray:SetVertexColor(W.C.well[1], W.C.well[2], W.C.well[3], 1)
+	row.tray:SetPoint("TOPRIGHT", -1, -1)
+	row.tray:SetPoint("BOTTOMRIGHT", -1, 1)
+	row.tray:SetPoint("LEFT", row.tag, "LEFT", -5, 0)
+	row.name = W.Label(bar, "GameFontHighlightSmall")
+	row.name:SetPoint("LEFT", 6, 0)
+	row.name:SetPoint("RIGHT", row.tag, "LEFT", -8, 0)
 	row.name:SetWordWrap(false)
-	row.tag = W.Label(row, "GameFontHighlightSmall")
-	row.tag:SetPoint("LEFT", 158, 0)
-	row.tag:SetWidth(70)
-	row.age = W.Label(row, "GameFontDisableSmall")
-	row.age:SetPoint("RIGHT", -4, 0)
-	row.age:SetJustifyH("RIGHT")
+	row.name:SetTextColor(1, 1, 1)
+	row.level = W.CapsFont(W.Label(row, "GameFontDisableSmall"), 11)
+	row.level:SetPoint("RIGHT", 0, 0)
+	row.level:SetJustifyH("RIGHT")
 	row:SetScript("OnEnter", function(self)
-		self.bg:SetVertexColor(1, 1, 1, 0.07)
+		self.hover = true
+		RadarUI:PaintRow(self)
 		rowTooltip(self)
 	end)
 	row:SetScript("OnLeave", function(self)
-		self.bg:SetVertexColor(1, 1, 1, 0)
+		self.hover = false
+		RadarUI:PaintRow(self)
 		GameTooltip:Hide()
 	end)
 	row:SetScript("OnClick", function(self, button)
@@ -87,6 +122,19 @@ local function createRow(parent, i)
 		end
 	end)
 	return row
+end
+
+--- The edge of a row's bar: orange while they have you targeted, gold under
+--- the mouse.
+function RadarUI:PaintRow(row)
+	local entry = row.entry
+	if entry and entry.targeting then
+		row.bar:SetBackdropBorderColor(1, 0.55, 0.2, 1)
+	elseif row.hover then
+		row.bar:SetBackdropBorderColor(W.C.gold[1], W.C.gold[2], W.C.gold[3], 1)
+	else
+		row.bar:SetBackdropBorderColor(W.C.steel[1], W.C.steel[2], W.C.steel[3], 1)
+	end
 end
 
 function RadarUI:Build()
@@ -153,23 +201,25 @@ function RadarUI:Render()
 		row.entry = entry
 		if entry then
 			local info = entry.info
-			local hex = Fmt.ClassHex(info.class)
-			local label = Names.Display(info.name)
-			if info.level then label = label .. " " .. Fmt.Color(Fmt.GREY, tostring(info.level)) end
-			row.name:SetText(hex and Fmt.Color(hex, label) or label)
-			local tag = TAGS[entry.tag]
-			if entry.targeting then
-				-- Kill on Sight stays visible next to it; lesser tags give way.
-				row.tag:SetText((entry.tag == 3 and (Fmt.Color(tag[2], tag[1]) .. " ") or "")
-					.. Fmt.Color(ON_YOU, entry.targeting == "pet" and L.RADAR_ON_PET or L.RADAR_ON_YOU))
-			elseif entry.stealth and not entry.plate then
-				row.tag:SetText((entry.tag == 3 and (Fmt.Color(tag[2], tag[1]) .. " ") or "") .. Fmt.Color(STEALTH, L.RADAR_STEALTH))
+			if W.SetClassIcon(row.class, info.class) then
+				row.class:SetVertexColor(1, 1, 1, 1)
 			else
-				row.tag:SetText(tag and Fmt.Color(tag[2], tag[1])
-					or (info.guild and Fmt.Color(Fmt.GREY, "<" .. info.guild .. ">") or ""))
+				row.class:SetTexture(W.MEDIA .. "crosshair")
+				row.class:SetTexCoord(0, 1, 0, 1)
+				row.class:SetVertexColor(W.C.muted[1], W.C.muted[2], W.C.muted[3], 1)
 			end
-			row.age:SetText(entry.plate and Fmt.Color("ff8fd18f", L.RADAR_NEAR)
-				or L.RADAR_AGO:format(math.floor(now - entry.at + 0.5)))
+			local r, g, b = Fmt.ClassRGB(info.class)
+			if not r then r, g, b = 0.55, 0.57, 0.60 end
+			-- A little darker than the class colour, so the white name reads on it
+			row.bar:SetStatusBarColor(r * 0.8, g * 0.8, b * 0.8, 1)
+			row.fresh = entry.plate and 1 or math.max(0, 1 - (now - entry.at) / ns.Radar.KEEP)
+			row.bar:SetValue(row.fresh)
+			row.name:SetText(Names.Display(info.name))
+			local status = statusText(entry)
+			row.tag:SetText(status)
+			row.tray:SetShown(status ~= "")
+			row.level:SetText(info.high and "??" or (info.level and tostring(info.level) or ""))
+			self:PaintRow(row)
 			row:Show()
 		else
 			row:Hide()

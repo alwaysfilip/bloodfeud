@@ -114,8 +114,11 @@ TABS.r = {
 			where = Fmt.Ago(seen.at) .. (zone and (" · " .. zone) or "")
 		end
 		local name = Fmt.PlayerName(subject)
+		-- The game's own class icon in front of the name, once the class is known
+		local classIcon = W.ClassInline(subject.facts and subject.facts.class, 14)
+		if classIcon ~= "" then name = classIcon .. " " .. name end
 		if session and ns.Bounties:Worth(bountyInfo(subject), subject.key) > 0 then
-			name = name .. Fmt.Color(Fmt.GOLD, " $")
+			name = name .. " " .. W.Inline("coin", 11)
 		end
 		return {
 			name, facts and facts.level and tostring(facts.level) or grey("??"), guild,
@@ -187,7 +190,7 @@ TABS.b = {
 		end
 		return {
 			bountyTarget(rec), Fmt.Color(Fmt.GOLD, tostring(rec.points)),
-			gold > 0 and Fmt.Color(Fmt.GOLD, L.GOLD_SHORT:format(gold)) or grey("–"),
+			gold > 0 and (Fmt.Color(Fmt.GOLD, tostring(gold)) .. " " .. W.Inline("coin", 12)) or grey("–"),
 			rec.reward ~= "" and rec.reward or grey("–"), Names.Display(rec.author), claims, Fmt.Ago(rec.at),
 		}
 	end,

@@ -1,5 +1,24 @@
 # Business Meeting - PvP
 
+## 0.5.0
+
+- Alerts are now built like the game's own unit frames instead of lines of
+  text. Each one shows a portrait with the class icon and the level, the name
+  on a bar in the class colour, and race, class and guild underneath.
+- What used to be sentences are tiles: the guild's kills and deaths against
+  that player with a split bar, your own record against them, and any
+  contract with its gold as a coin. A red "Kill on Sight" badge sits on
+  targeting and stealth alerts about someone from the hit list.
+- "Kill confirmed" shows the way to your next rank as a progress bar, and a
+  stealth alert shows the icon of the spell that was used.
+- The radar is redrawn: every row is the class icon and a bar in the class
+  colour that drains as the sighting gets older (full means in view now),
+  with icons for Kill on Sight, a contract, a hostile guild and stealth, and
+  the level at the end. "ON YOU" is still spelled out.
+- In the window, names on the hit list get their class icon and gold is shown
+  with a coin.
+- The intel and who sanctioned it are still text, as are the chat lines.
+
 ## 0.4.1
 
 - Published again now that the project page carries the new name, logo and

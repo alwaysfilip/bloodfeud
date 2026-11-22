@@ -82,6 +82,17 @@ T.test("game: a full session runs without Lua errors", function()
 	noErrors(world)
 	T.ok(chatHas(world, "Kill on Sight nearby", chatFrom), "chat alert")
 	T.ok(BusinessMeetingAlertBanner and BusinessMeetingAlertBanner:IsShown(), "banner shown")
+	-- built like a unit frame: portrait with the class icon and level, the name on a plate
+	local banner = BusinessMeetingAlertBanner
+	T.eq(banner.title:GetText(), "KILL ON SIGHT")
+	T.eq(banner.name:GetText(), "GRIMTUSK BLOODAXE", "the name in capitals on the plate")
+	T.eq(banner.portrait.shows, "class", "the class icon is the portrait")
+	T.eq(banner.portrait.badge.text:GetText(), "60", "the level in the badge")
+	T.ok(banner.sub:GetText():find("Orc Rogue", 1, true), banner.sub:GetText())
+	T.ok(banner.sub:GetText():find("<Hostile Takeover>", 1, true), "the guild under the name")
+	T.ok(banner.detail:GetText():find("“", 1, true), "the intel on the bottom line")
+	T.ok(banner.by:GetText():find("sanctioned by", 1, true), banner.by:GetText())
+	T.ok(not banner.badge:IsShown(), "no extra Kill on Sight badge on the Kill on Sight alert itself")
 	T.eq(world.lastSound, 8959)
 	world.units.nameplate1 = GRIMTUSK
 	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
@@ -868,7 +879,7 @@ T.test("game: bounty, radar and streak edge cases", function()
 	world:Advance(1)
 	local marked = false
 	for _, row in ipairs(main.frame.rows) do
-		if row.item and row.item.key == "zulrakka" then marked = row.cells[1]:GetText():find("$", 1, true) ~= nil end
+		if row.item and row.item.key == "zulrakka" then marked = row.cells[1]:GetText():find("Media\\coin", 1, true) ~= nil end
 	end
 	T.ok(marked, "the row shows the bounty mark")
 	noErrors(world)
@@ -979,6 +990,12 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	world.units.target = enemy("Morgash", "Gorefist", "Player-1-0000EEEE")
 	world:Fire("PLAYER_TARGET_CHANGED")
 	T.ok(chatHas(world, "Open contract: 25 points and 50 gold", chatFrom), "the alert names the gold")
+	T.eq(BusinessMeetingAlertBanner.title:GetText(), "OPEN CONTRACT")
+	local contractTile = BusinessMeetingAlertBanner.tiles[1]
+	T.ok(contractTile:IsShown() and not BusinessMeetingAlertBanner.tiles[2]:IsShown(), "one tile: the contract")
+	T.eq(contractTile.gold, 50, "the gold on the tile")
+	T.eq(contractTile.points, 25)
+	T.ok(contractTile.value:GetText():find("Media\\coin", 1, true), "with a coin, not the letter g")
 	chatFrom = #world.chat + 1
 	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
 	world:Advance(1)
@@ -1138,7 +1155,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 		end
 	end
 	local row = T.ok(rowOf(onGor.id), "the won bounty is on the board")
-	T.ok(row.cells[3]:GetText():find("40g", 1, true), "gold column")
+	T.ok(row.cells[3]:GetText():find("40", 1, true) and row.cells[3]:GetText():find("Media\\coin", 1, true), "gold column")
 	T.ok(row.cells[6]:GetText():find("Fulfilled by Olaf Stormborn", 1, true), row.cells[6]:GetText())
 	T.ok(row.cells[6]:GetText():find("payment due, 47 h left", 1, true), row.cells[6]:GetText())
 	row.scripts.OnEnter(row)
@@ -1517,11 +1534,19 @@ T.test("game: an enemy who targets you", function()
 	T.ok(chatHas(world, "Kill on Sight|r: “Ganked the whole raid”", chatFrom), "says he is Kill on Sight, and why")
 	T.ok(chatHas(world, "Against the guild: kills 8, deaths 3", chatFrom), "the guild's score against him")
 	T.ok(chatHas(world, "Against you: kills 1, deaths 0", chatFrom), "and my own")
+	-- the banner says the same with a badge and two tiles instead of sentences
+	local banner = BusinessMeetingAlertBanner
+	T.ok(banner.badge:IsShown(), "Kill on Sight badge")
+	T.eq(banner.tiles[1].kills, 3, "guild record: kills")
+	T.eq(banner.tiles[1].deaths, 8, "guild record: deaths")
+	T.eq(banner.tiles[2].kills, 0, "my own record: kills")
+	T.eq(banner.tiles[2].deaths, 1, "my own record: deaths")
+	T.ok(not banner.wide:IsShown())
 	local about = Targeting:Dossier(ns.Detect.Inspect("nameplate1"))
 	T.eq(about.deaths, 8)
 	T.eq(about.kills, 3)
 	T.eq(about.myDeaths, 1)
-	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("KOS", 1, true), "Kill on Sight still shows next to ON YOU")
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("Media\\skull", 1, true), "the skull stays next to ON YOU")
 
 	-- Zulrakka targets me while I have her targeted myself: marked, no alert
 	world.units.target = ZUL
@@ -1646,6 +1671,8 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	T.ok(chatHas(world, "Stealth:|r |cfffff468Morgash Gorefist|r (60 Orc Rogue) used Vanish near you.", chatFrom))
 	T.eq(Stealth.stats.hits, 1, "one alert for one cast")
 	T.eq(BusinessMeetingAlertBanner.title:GetText(), "STEALTH")
+	T.ok(BusinessMeetingAlertBanner.wide:IsShown(), "the spell gets the wide tile")
+	T.eq(BusinessMeetingAlertBanner.wide.spellName:GetText(), "Vanish")
 	T.eq(world.lastSound, 8959)
 	-- his nameplate goes, the radar remembers him as stealthed
 	world.units.nameplate1 = nil
@@ -1654,8 +1681,10 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	local entry = ns.Radar:Visible()[1]
 	T.ok(entry.stealth, "marked on the radar")
 	T.eq(entry.stealthSpell, "Vanish")
-	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("STEALTH", 1, true))
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("Media\\stealth", 1, true), "a stealth icon on the radar row")
 	local row = _G.BusinessMeetingRadarFrame.rows[1]
+	T.ok(row.fresh < 1, "the bar has started to drain now that he is out of view")
+	T.eq(row.level:GetText(), "60")
 	row.scripts.OnEnter(row)
 	row.scripts.OnLeave(row)
 	-- seen again: no longer stealthed
@@ -1731,6 +1760,16 @@ T.test("game: capitals keep colour codes, and frames carry the corner brackets",
 	local W = ns.W
 	T.eq(W.Caps("Hit list · |cffd4a94e3 on you|r"), "HIT LIST · |cFFD4A94E3 ON YOU|r")
 	T.eq(W.Caps(nil), nil)
+	-- icons inside text: the game's class sheet, and our own glyphs
+	T.ok(W.ClassInline(4, 14):find("UI-Classes-Circles:14:14:0:0:256:256:127:190:0:64", 1, true), W.ClassInline(4, 14))
+	T.eq(W.ClassInline(nil, 14), "", "nothing when the class is not known")
+	T.ok(W.Inline("skull", 12, 255, 138, 128):find("Media\\skull:12:12:0:0:32:32:0:32:0:32:255:138:128", 1, true))
+	T.eq(W.NameCaps("Grimtusk Bloodaxe"), "GRIMTUSK BLOODAXE")
+	T.eq(W.NameCaps("Grímtusk"), "Grímtusk", "a name with letters upper() cannot handle is left alone")
+	local inkR, _, _, light = W.Ink(1, 0.96, 0.41)
+	T.ok(inkR < 0.1 and not light, "dark ink on a light class colour")
+	inkR, _, _, light = W.Ink(0.0, 0.44, 0.87)
+	T.ok(inkR == 1 and light, "white ink on a dark one")
 	-- A client without the narrow font keeps the font it had
 	local plain = { SetFont = function() error("invalid font") end }
 	T.eq(W.CapsFont(plain, 12), plain, "a missing font file does not stop the window being built")
@@ -1784,6 +1823,13 @@ T.test("game: the new name takes over Blood Feud's saved data, and a kill is con
 	local detail = BusinessMeetingAlertBanner.detail:GetText()
 	T.ok(detail:find("Confirmed kill 8", 1, true), detail)
 	T.ok(detail:find("2 more to Associate", 1, true), detail)
+	local rank = BusinessMeetingAlertBanner.spec.wide
+	T.eq(rank.kind, "rank", "the way to the next rank as a bar")
+	T.eq(rank.title, "Recruit")
+	T.eq(rank.next, "Associate")
+	T.eq(rank.have, 8)
+	T.eq(rank.need, 10)
+	T.eq(BusinessMeetingAlertBanner.wide.barText:GetText(), "8 / 10")
 	ns.settings.dealBanner = false
 	BusinessMeetingAlertBanner:Hide()
 	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000EEEE")

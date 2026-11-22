@@ -331,6 +331,14 @@ L.DEAL_COUNT = "Confirmed kill %d"
 L.DEAL_NEXT = "%d more to %s"
 L.DEAL_STREAK = "%d in a row"
 
+-- The tiles on an alert
+L.TILE_GUILD = "Guild record"
+L.TILE_YOU = "You"
+L.TILE_CONTRACT = "Contract"
+L.TILE_POINTS = "%d pts"
+L.TILE_POINTS_MORE = "+%d pts"
+L.TILE_SPELL_NEAR = "Used near you"
+
 -- Radar
 L.RADAR_TITLE = "Radar"
 L.RADAR_TITLE_N = "Radar · %d"

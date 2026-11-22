@@ -17,7 +17,7 @@ local L = ns.L
 local floor = math.floor
 
 local Debts = { known = {}, events = {},
-	-- What the client actually let us see, for /feud probe.
+	-- What the client actually let us see, for /bm probe.
 	stats = { scans = 0, mails = 0, unreadable = 0, sends = 0, trades = 0 } }
 ns.Debts = Debts
 

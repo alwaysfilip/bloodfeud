@@ -10,4 +10,4 @@ fi
 bash .release/release.sh -d -g forever "$@"
 echo
 echo "Package contents:"
-find .release/BloodFeud -maxdepth 2 | sort | sed 's#^.release/##'
+find .release/BusinessMeeting .release/BloodFeud -maxdepth 2 | sort | sed 's#^.release/##'

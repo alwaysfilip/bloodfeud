@@ -9,11 +9,11 @@ ignore = {
 }
 
 globals = {
-	"BloodFeudDB",
-	"BloodFeud_OnAddonCompartmentClick",
-	"BloodFeud_OnAddonCompartmentEnter",
-	"BloodFeud_OnAddonCompartmentLeave",
-	"SLASH_BLOODFEUD1", "SLASH_BLOODFEUD2",
+	"BusinessMeetingDB",
+	"BusinessMeeting_OnAddonCompartmentClick",
+	"BusinessMeeting_OnAddonCompartmentEnter",
+	"BusinessMeeting_OnAddonCompartmentLeave",
+	"SLASH_BUSINESSMEETING1", "SLASH_BUSINESSMEETING2", "SLASH_BUSINESSMEETING3",
 	"SlashCmdList",
 	"StaticPopupDialogs",
 }
@@ -39,6 +39,6 @@ read_globals = {
 
 files["tests/*.lua"] = {
 	std = "luajit",
-	globals = { "bit", "BloodFeudDB", "GameTooltip" },
-	read_globals = { "BloodFeudAlertBanner", "BloodFeudAddDialog", "SlashCmdList", "GetServerTime" },
+	globals = { "bit", "BusinessMeetingDB", "GameTooltip" },
+	read_globals = { "BusinessMeetingAlertBanner", "BusinessMeetingAddDialog", "SlashCmdList", "GetServerTime" },
 }

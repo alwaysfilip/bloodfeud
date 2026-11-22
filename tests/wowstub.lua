@@ -288,7 +288,13 @@ function Stub.Install()
 	}
 	G.RAID_CLASS_COLORS = { ROGUE = { r = 1, g = 0.96, b = 0.41, colorStr = "fffff468" } }
 	G.C_NamePlate = { GetNamePlateForUnit = function(token) return world.units[token] and frame("NamePlate") or nil end }
-	G.C_AddOns = { GetAddOnMetadata = function() return "test" end }
+	-- world.addons: other addons that are loaded; world.disabled: switched off by us
+	world.addons, world.disabled = {}, {}
+	G.C_AddOns = {
+		GetAddOnMetadata = function() return "test" end,
+		IsAddOnLoaded = function(name) return world.addons[name] or false end,
+		DisableAddOn = function(name) world.disabled[name] = true end,
+	}
 	G.C_RestrictedActions = { IsAddOnRestrictionActive = function() return false end }
 	G.C_PlayerInfo = { ShouldDisplaySurname = function() return true end }
 	G.GetBuildInfo = function() return "1.60.1", "70959", "Nov 1 2026", 16001 end
@@ -340,12 +346,12 @@ function Stub.Install()
 	function world:LoadAddon(root)
 		local ns = {}
 		local loaded = {}
-		for line in io.lines(root .. "/BloodFeud.toc") do
+		for line in io.lines(root .. "/BusinessMeeting.toc") do
 			line = line:gsub("%s+$", "")
 			if line ~= "" and line:sub(1, 1) ~= "#" and not line:find("^Libs") then
 				local path = root .. "/" .. line:gsub("\\", "/")
 				local chunk = assert(loadfile(path), "toc lists a file that does not load: " .. line)
-				chunk("BloodFeud", ns)
+				chunk("BusinessMeeting", ns)
 				loaded[#loaded + 1] = line
 			end
 		end

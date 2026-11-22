@@ -1,95 +1,120 @@
-# Blood Feud
+# Business Meeting - PvP
 
-A guild-shared Kill on Sight list for **World of Warcraft: Forever**.
+World PvP for your guild in **World of Warcraft: Forever**. You are here on
+business: there is a hit list, there are contracts, and somebody keeps the
+books.
 
-One guild member marks an enemy player. Everyone else in the guild who runs
-the addon gets the entry within seconds, and is alerted the moment they meet
-that player themselves.
+One guild member marks an enemy player Kill on Sight. Everyone else in the
+guild who runs the addon gets the entry within seconds, and is alerted the
+moment they meet that player themselves. Around that shared hit list sit a
+radar, contracts (bounties) paid in points and gold, ranks, medals
+(achievements) and alerts for whoever targets you or goes into stealth.
+
+Formerly called Blood Feud. Updating keeps your saved data.
+
+## The language
+
+| In the addon | What it is |
+|---|---|
+| The hit list | The guild's shared list of enemy players marked Kill on Sight |
+| Intel, sanctioned by | Why someone is on the list, and who put them there |
+| Hostile guild | An enemy guild on the list |
+| Confirmed kill | Your killing blow on an enemy player |
+| Contract | A bounty on an enemy player or guild: opened by a client, fulfilled by a kill |
+| Blacklisted | What you are when you do not pay the gold for a fulfilled contract |
+| Rank, medal | Your standing from confirmed kills, and an achievement |
+| Comms | The guildmates who run the addon |
+
+What has to be understood in the middle of a fight is said plainly:
+"Targeting you", "Stealth", "Kill on Sight".
 
 ## What it does
 
-- **Shared list.** Any member can list an enemy player with a reason. Several
-  members can list the same enemy; each keeps their own reason, and the list
+- **The hit list.** Any member can add an enemy player with intel. Several
+  members can add the same enemy; each keeps their own intel, and the list
   shows how many of you have a score to settle.
-- **Alert on sight.** A banner, a sound and a chat line when a listed player
-  shows up as a nameplate, your target, your focus or under your mouse.
-- **Marked in the world.** A skull above the nameplate, and the reason, who
-  added it and where they were last seen in the tooltip.
-- **Right-click to add.** "Add to Kill on Sight" in the menu of any enemy
-  player, or `/feud add` with them targeted.
-- **Enemy guilds.** Officers can list a whole guild. Its members give a
-  quieter alert.
-- **Sightings.** When someone meets a listed player, the guild gets one line:
-  who, where, and who saw them.
-- **Kill count.** Your killing blows on enemy players and your deaths to them
-  are counted. For a listed player the list shows the whole guild's score.
-- **Revenge.** When the same enemy kills you twice within 30 minutes, Blood
-  Feud offers to put them on the list. Both numbers can be changed in the
-  options.
-- **Radar.** A small window listing the enemy players around you, the ones on
-  the list or with a bounty first. Shift-click to list them, right-click to
-  post a bounty.
-- **Bounties.** Anyone can put a price on an enemy player or a whole guild.
-  Points go to every guildmate who lands a killing blow, and the board shows
-  who has collected.
-- **Gold bounties.** A bounty can also carry gold, which goes to the first
-  kill. Its poster then has 48 hours to send the gold by mail or trade. Blood
-  Feud notices the gold leave and arrive by itself. Whoever has not paid in
-  time is **Dishonored**: no rank, no bounty points and no new bounties until
-  the debt is paid.
-- **Ranks.** Your kills earn you a rank, from Recruit to Feudlord. Officers can
-  rename the ranks and move the thresholds for the whole guild. Guildmates see
-  each other's rank in the Ranks tab and in tooltips.
-- **Achievements.** 31 of them, from First Blood to Clan Breaker. Your guild is
-  told when you earn one, and can see which ones you have.
-- **Targeting you.** When an enemy player targets you or your pet, Blood Feud
-  tells you who it is: class, level, race and guild, whether they are Kill on
-  Sight and why, how many times they have killed your guildmates and you, and
-  any bounty on them. They are marked on the radar and with a red cross on
+- **Alert on sight.** A banner, a sound and a chat line when someone from the
+  hit list shows up as a nameplate, your target, your focus or under your
+  mouse.
+- **Marked in the world.** A skull above the nameplate, and the intel, who
+  sanctioned it and where they were last seen in the tooltip.
+- **Right-click to add.** "Add to the hit list (Kill on Sight)" in the menu of
+  any enemy player, or `/bm add` with them targeted.
+- **Hostile guilds.** Officers can list a whole enemy guild. Its members give
+  a quieter alert.
+- **Sightings.** When someone meets a player from the hit list, the guild gets
+  one line: who, where, and who saw them.
+- **Confirmed kills.** Your killing blows on enemy players and your deaths to
+  them are counted, with a banner for each kill you confirm. For a player on
+  the hit list, the list shows the whole guild's record.
+- **Unfinished business.** When the same enemy kills you twice within 30
+  minutes, Business Meeting offers to put them on the hit list. Both numbers
+  can be changed in the options.
+- **Radar.** A small window listing the enemy players around you, Kill on
+  Sight and players with a contract on them first. Shift-click to add them,
+  right-click to open a contract on them.
+- **Contracts.** Anyone can open a contract on an enemy player or a whole
+  guild. Points go to every guildmate who lands a killing blow, and the board
+  shows who has collected.
+- **Gold contracts.** A contract can also carry gold, which goes to the first
+  kill. Whoever opened it then has 48 hours to pay by mail or trade. Business
+  Meeting notices the gold leave and arrive by itself. Whoever has not paid in
+  time is **blacklisted**: no rank, no contract points and no new contracts
+  until the gold is paid.
+- **Ranks.** Your confirmed kills earn you a rank, from Recruit to Boogeyman.
+  Officers can rename the ranks and move the thresholds for the whole guild.
+  Guildmates see each other's rank on the Ranks tab and in tooltips.
+- **Medals.** 31 of them, from First Blood to Bad Blood. Your guild is told
+  when you earn one, and can see which ones you have.
+- **Targeting you.** When an enemy player targets you or your pet, you are
+  told who it is: class, level, race and guild, whether they are Kill on Sight
+  and why, how they have fared against the guild and against you, and any
+  contract on them. They are marked on the radar and with a red cross on
   their nameplate for as long as it lasts.
 - **Stealth alert.** When an enemy player you can see uses Stealth, Vanish,
   Prowl or Shadowmeld, you are told, and the radar keeps them marked as
   stealthed.
-- **Who has the addon.** The Addon tab lists the guildmates who run Blood
-  Feud, their version, who is online, and who needs to update before they can
-  sync with you.
+- **Comms.** The Comms tab lists the guildmates who run the addon, their
+  version, who is online, and who needs to update before they can sync with
+  you.
 
 ## Commands
 
 | Command | |
 |---|---|
-| `/feud` | Open the list |
-| `/feud add [reason]` | Add your target |
-| `/feud add Firstname-Surname [reason]` | Add a player by name |
-| `/feud remove Firstname-Surname` | Remove your own report |
-| `/feud guild Guild Name = reason` | List a guild (officers) |
-| `/feud score [Firstname-Surname]` | Your kills and deaths, or one enemy's score |
-| `/feud radar` | Show or hide the radar |
-| `/feud bounty [points] [50g] [note]` | Post a bounty on your target; `50g` puts 50 gold on it |
-| `/feud bounty Firstname-Surname [points] [50g] [note]` | Post a bounty by name (with no enemy targeted) |
-| `/feud bounty <Guild Name> [points] [50g] [note]` | Post a bounty on a guild |
-| `/feud bounties` | Open the bounty board |
-| `/feud debts` | Bounty gold you owe and are owed |
-| `/feud users` | Which guildmates run Blood Feud, and on which version |
-| `/feud rank` | Your rank, and the guild's ranks |
-| `/feud rank set <n> <kills> <title>` | Change a rank (officers) |
-| `/feud ach` | Your achievements |
-| `/feud sync` | Ask the guild for changes now |
-| `/feud log` | Recent changes and who sent them |
-| `/feud options` | Open the options page |
+| `/bm` | Open the hit list (`/meeting` and the old `/feud` work too) |
+| `/bm add [intel]` | Add your target |
+| `/bm add Firstname-Surname [intel]` | Add a player by name |
+| `/bm remove Firstname-Surname` | Remove your own entry |
+| `/bm guild Guild Name = intel` | List a hostile guild (officers) |
+| `/bm score [Firstname-Surname]` | Your kills and deaths, or the record against one enemy |
+| `/bm radar` | Show or hide the radar |
+| `/bm bounty [points] [50g] [terms]` | Open a contract on your target; `50g` puts 50 gold on it |
+| `/bm bounty Firstname-Surname [points] [50g] [terms]` | Open a contract on a player by name (with no enemy targeted) |
+| `/bm bounty <Guild Name> [points] [50g] [terms]` | Open a contract on a guild |
+| `/bm bounties` | Open the contracts |
+| `/bm debts` | Contract gold you owe and are owed |
+| `/bm users` | Which guildmates run the addon, and on which version |
+| `/bm rank` | Your rank, and everyone else's |
+| `/bm rank set <n> <kills> <name>` | Change a rank (officers) |
+| `/bm ach` | Your medals |
+| `/bm sync` | Ask the guild for changes now |
+| `/bm log` | Recent changes and who sent them |
+| `/bm options` | Open the options page |
 
 ## Who can do what
 
-- Any member can add a player.
-- A report can be removed by the member who wrote it, or by an officer.
-- Only officers can list or unlist a guild.
-- Any member can post a bounty. It can be taken down by its poster or an
-  officer. A gold bounty that has been won can only be taken down by its
-  poster once the gold is paid.
-- On the gold of a won bounty, the poster can say it is sent, the winner can
-  say it arrived or did not, and an officer can settle it either way.
+- Any member can add a player to the hit list.
+- An entry can be removed by the member who wrote it, or by an officer.
+- Only officers can list or unlist a hostile guild.
+- Any member can open a contract. It can be withdrawn by whoever opened it or
+  by an officer. A gold contract that has been fulfilled can only be withdrawn
+  by whoever opened it once the gold is paid.
+- On a fulfilled gold contract, whoever opened it can say the gold is sent,
+  whoever fulfilled it can say it arrived or did not, and an officer can
+  settle it either way.
 - Only officers can change the ranks.
-- Only you can write your own totals, achievements and bounty claims.
+- Only you can write your own totals, medals and contract claims.
 
 "Officer" means the guild master and every rank with the officer permission
 ticked in the guild control panel.
@@ -112,7 +137,7 @@ works within them rather than around them:
   addons who landed a killing blow and, through the death recap, who killed
   you. It does not do so inside instances, so nothing is counted there. A
   kill only counts when it was your (or your pet's) killing blow. Ranks,
-  bounty claims and most achievements build on those kills.
+  contracts and most medals build on those kills.
 - **"Targeting you" only covers enemies the game shows you.** An addon can
   ask who an enemy has targeted only for enemies with a nameplate, your own
   target and your focus. Someone out of sight, or in stealth, is not noticed.
@@ -122,13 +147,13 @@ works within them rather than around them:
 - **The radar is a list, not a map.** Addons cannot read where an enemy
   stands, so the radar shows who the game has shown you in the last minute,
   not their position.
-- **Blood Feud cannot move gold, only watch it.** The poster of a won gold
-  bounty pays by ordinary mail or trade. The addon sees the gold leave on the
-  poster's side, which stops the 48-hour clock, and sees it arrive on the
-  winner's side, which closes the debt. Incoming mail can only be read while
-  you stand at a mailbox, so a payment by mail is confirmed the next time the
-  winner opens theirs. The winner can also confirm by hand, or say the gold
-  never came, and an officer can settle a dispute.
+- **The addon cannot move gold, only watch it.** Whoever opened a fulfilled gold
+  contract pays by ordinary mail or trade. The addon sees the gold leave on
+  their side, which stops the 48-hour clock, and sees it arrive on the other
+  side, which settles the contract. Incoming mail can only be read while you
+  stand at a mailbox, so a payment by mail is confirmed the next time the
+  receiver opens theirs. The receiver can also confirm by hand, or say the
+  gold never came, and an officer can settle a dispute.
 
 ## An honest note on permissions
 
@@ -137,22 +162,22 @@ live change, where the game server guarantees who the sender is. What cannot
 be verified is state that one member passes on for another, because addons
 have no way to sign a message. A member running a modified copy of the addon
 could therefore push changes they have no right to make. Every accepted
-change is logged with its real sender (`/feud log`), and an officer can
+change is logged with its real sender (`/bm log`), and an officer can
 always undo it.
 
 ## Privacy
 
-Blood Feud only talks on your guild's hidden addon channel. It tells your
-guild that you run the addon and which version, and it sends the list
-entries, what it saw of a listed player (class, level, guild), your
+Business Meeting only talks on your guild's hidden addon channel. It tells
+your guild that you run the addon and which version, and it sends the
+hit list entries, what it saw of a listed player (class, level, guild), your
 kill and death count against listed players, your total kills, deaths, best
-streak, bounty points and achievements, the bounties you post and claim,
-whether the gold of a won bounty was sent and received, and sightings of
-listed players with your zone and coordinates. Sightings can be turned off in
-the options. Nothing is sent anywhere else. To notice a bounty being paid,
-the addon looks at who your mail and trades are with and how much gold is in
+streak, contract points and medals, the contracts you open and fulfill,
+whether the gold of a fulfilled contract was sent and received, and sightings of listed
+players with your zone and coordinates. Sightings can be turned off in the
+options. Nothing is sent anywhere else. To notice a contract being paid, the
+addon looks at who your mail and trades are with and how much gold is in
 them; that stays on your computer, and only "sent" or "received" for the
-bounty in question is shared.
+contract in question is shared.
 
 ## Development
 

@@ -8,7 +8,7 @@ local Dialog = {}
 ns.AddDialog = Dialog
 
 function Dialog:Build()
-	local f = W.Panel(UIParent, "BloodFeudAddDialog")
+	local f = W.Panel(UIParent, "BusinessMeetingAddDialog")
 	self.frame = f
 	f:SetSize(380, 248)
 	f:SetPoint("CENTER", 0, 90)
@@ -16,13 +16,12 @@ function Dialog:Build()
 	f:SetToplevel(true)
 	W.Movable(f)
 	f:Hide()
-	tinsert(UISpecialFrames, "BloodFeudAddDialog")
+	tinsert(UISpecialFrames, "BusinessMeetingAddDialog")
 
-	f.title = W.Label(f, "GameFontNormalLarge")
+	f.title = W.Heading(f)
 	f.title:SetPoint("TOPLEFT", 16, -14)
-	f.title:SetTextColor(0.94, 0.78, 0.37)
 
-	f.nameLabel = W.Label(f, "GameFontDisableSmall")
+	f.nameLabel = W.Caption(f)
 	f.nameLabel:SetPoint("TOPLEFT", 16, -46)
 	f.name = W.EditBox(f, 348, 26, 60)
 	f.name:SetPoint("TOPLEFT", 16, -62)
@@ -30,7 +29,7 @@ function Dialog:Build()
 	f.detail:SetPoint("TOPLEFT", 16, -92)
 	f.detail:SetPoint("RIGHT", f, "RIGHT", -16, 0)
 
-	local reasonLabel = W.Label(f, "GameFontDisableSmall", L.FIELD_REASON)
+	local reasonLabel = W.Caption(f, L.FIELD_REASON)
 	reasonLabel:SetPoint("TOPLEFT", 16, -114)
 	f.reason = W.EditBox(f, 348, 26)
 	f.reason:SetPoint("TOPLEFT", 16, -130)
@@ -98,16 +97,16 @@ function Dialog:Open(mode, opts)
 
 	local name
 	if mode == "guild" then
-		f.title:SetText(L.DIALOG_ADD_GUILD)
-		f.nameLabel:SetText(L.FIELD_GUILD)
+		f.title:SetText(W.Caps(L.DIALOG_ADD_GUILD))
+		f.nameLabel:SetText(W.Caps(L.FIELD_GUILD))
 		name = opts.name or ""
 	elseif mode == "edit" then
-		f.title:SetText(L.DIALOG_EDIT)
-		f.nameLabel:SetText(opts.kind == "g" and L.FIELD_GUILD or L.FIELD_PLAYER)
+		f.title:SetText(W.Caps(L.DIALOG_EDIT))
+		f.nameLabel:SetText(W.Caps(opts.kind == "g" and L.FIELD_GUILD or L.FIELD_PLAYER))
 		name = opts.kind == "g" and opts.name or Names.Display(opts.name)
 	else
-		f.title:SetText(L.DIALOG_ADD_PLAYER)
-		f.nameLabel:SetText(L.FIELD_PLAYER)
+		f.title:SetText(W.Caps(L.DIALOG_ADD_PLAYER))
+		f.nameLabel:SetText(W.Caps(L.FIELD_PLAYER))
 		name = (opts.info and opts.info.name) or opts.name or ""
 	end
 	f.name:SetText(name)

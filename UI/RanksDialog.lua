@@ -11,7 +11,7 @@ ns.RanksDialog = Dialog
 local ROW_H = 28
 
 function Dialog:Build()
-	local f = W.Panel(UIParent, "BloodFeudRanksDialog")
+	local f = W.Panel(UIParent, "BusinessMeetingRanksDialog")
 	self.frame = f
 	f:SetSize(380, 110 + Codec.MAX_TIERS * ROW_H)
 	f:SetPoint("CENTER", 0, 40)
@@ -19,14 +19,13 @@ function Dialog:Build()
 	f:SetToplevel(true)
 	W.Movable(f)
 	f:Hide()
-	tinsert(UISpecialFrames, "BloodFeudRanksDialog")
+	tinsert(UISpecialFrames, "BusinessMeetingRanksDialog")
 
-	local title = W.Label(f, "GameFontNormalLarge", L.DIALOG_RANKS)
+	local title = W.Heading(f, L.DIALOG_RANKS)
 	title:SetPoint("TOPLEFT", 16, -14)
-	title:SetTextColor(0.94, 0.78, 0.37)
-	local killsHead = W.Label(f, "GameFontDisableSmall", L.COL_KILLS)
+	local killsHead = W.Caption(f, L.COL_KILLS)
 	killsHead:SetPoint("TOPLEFT", 44, -44)
-	local titleHead = W.Label(f, "GameFontDisableSmall", L.COL_TITLE)
+	local titleHead = W.Caption(f, L.COL_TITLE)
 	titleHead:SetPoint("TOPLEFT", 130, -44)
 
 	f.rows = {}

@@ -1,4 +1,4 @@
--- /feud probe: a diagnostic report of how this client answers the questions
+-- /bm probe: a diagnostic report of how this client answers the questions
 -- the addon depends on (name shapes, guild ranks, what is readable about an
 -- enemy, whether addon messages loop back). It is saved to the addon's
 -- SavedVariables so it can be read from disk after a /reload.
@@ -86,7 +86,7 @@ local function describeUnit(add, unit)
 end
 
 local function collect(add)
-	add("Blood Feud probe " .. date("%Y-%m-%d %H:%M:%S"))
+	add("Business Meeting probe " .. date("%Y-%m-%d %H:%M:%S"))
 	local okBuild, version, build, buildDate, toc = try(_G.GetBuildInfo)
 	add(("build: %s %s %s toc %s"):format(show(okBuild and version), show(build), show(buildDate), show(toc)))
 	add("WOW_PROJECT_ID: " .. show(_G.WOW_PROJECT_ID) .. "  locale: " .. show(select(2, try(_G.GetLocale))))

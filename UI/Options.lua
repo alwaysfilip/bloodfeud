@@ -15,6 +15,7 @@ local CHECKS = {
 	{ "sightSend", L.OPT_SIGHT_SEND, L.OPT_SIGHT_SEND_TIP },
 	{ "sightShow", L.OPT_SIGHT_SHOW, L.OPT_SIGHT_SHOW_TIP },
 	{ "revenge", L.OPT_REVENGE, L.OPT_REVENGE_TIP },
+	{ "dealBanner", L.OPT_DEAL_BANNER, L.OPT_DEAL_BANNER_TIP },
 	{ "bountyAlerts", L.OPT_BOUNTY_ALERTS, L.OPT_BOUNTY_ALERTS_TIP },
 	{ "targetAlerts", L.OPT_TARGET_ALERTS, L.OPT_TARGET_ALERTS_TIP },
 	{ "targetSound", L.OPT_TARGET_SOUND, L.OPT_TARGET_SOUND_TIP },
@@ -34,14 +35,14 @@ function Options:Init()
 	local settings = _G.Settings
 	if not (settings and settings.RegisterVerticalLayoutCategory and settings.RegisterAddOnSetting
 		and settings.CreateCheckbox and settings.RegisterAddOnCategory) then
-		ns:Debug("Settings API not available; use /feud set <option> on|off")
+		ns:Debug("Settings API not available; use /bm set <option> on|off")
 		return
 	end
 	local boolean = settings.VarType and settings.VarType.Boolean or "boolean"
 	local category = settings.RegisterVerticalLayoutCategory(ns.TITLE)
 	for i = 1, #CHECKS do
 		local key, label, tip = CHECKS[i][1], CHECKS[i][2], CHECKS[i][3]
-		local setting = settings.RegisterAddOnSetting(category, "BloodFeud_" .. key, key, ns.settings, boolean, label,
+		local setting = settings.RegisterAddOnSetting(category, "BusinessMeeting_" .. key, key, ns.settings, boolean, label,
 			ns.DEFAULTS[key])
 		settings.CreateCheckbox(category, setting, tip)
 		if key == "nameplates" and setting and setting.SetValueChangedCallback then
@@ -59,7 +60,7 @@ function Options:Init()
 		for i = 1, #SLIDERS do
 			local key, label, tip, lo, hi, step = unpack(SLIDERS[i])
 			local ok, err = pcall(function()
-				local setting = settings.RegisterAddOnSetting(category, "BloodFeud_" .. key, key, ns.settings, number,
+				local setting = settings.RegisterAddOnSetting(category, "BusinessMeeting_" .. key, key, ns.settings, number,
 					label, ns.DEFAULTS[key])
 				local options = settings.CreateSliderOptions(lo, hi, step)
 				if options.SetLabelFormatter and _G.MinimalSliderWithSteppersMixin then
@@ -71,7 +72,7 @@ function Options:Init()
 		end
 	end
 	if settings.RegisterProxySetting then
-		local minimap = settings.RegisterProxySetting(category, "BloodFeud_minimap", boolean, L.OPT_MINIMAP, true,
+		local minimap = settings.RegisterProxySetting(category, "BusinessMeeting_minimap", boolean, L.OPT_MINIMAP, true,
 			function() return not ns.db.minimap.hide end,
 			function(value)
 				ns.db.minimap.hide = not value
@@ -89,6 +90,6 @@ function ns:OpenOptions()
 	if settings and settings.OpenToCategory and category and category.GetID then
 		settings.OpenToCategory(category:GetID())
 	else
-		self:Print("/feud set <option> on|off - /feud help lists the options")
+		self:Print("/bm set <option> on|off - /bm help lists the options")
 	end
 end

@@ -90,7 +90,7 @@ local function createRow(parent, i)
 end
 
 function RadarUI:Build()
-	local f = W.Panel(UIParent, "BloodFeudRadarFrame")
+	local f = W.Panel(UIParent, "BusinessMeetingRadarFrame")
 	self.frame = f
 	f:SetSize(WIDTH, TOP + ROWS * ROW_H + 10)
 	f:SetPoint("RIGHT", UIParent, "RIGHT", -60, 80)
@@ -101,10 +101,9 @@ function RadarUI:Build()
 	local icon = f:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(14, 14)
 	icon:SetPoint("TOPLEFT", 10, -8)
-	icon:SetTexture(W.SKULL)
-	f.title = W.Label(f, "GameFontNormal", L.RADAR_TITLE)
+	icon:SetTexture(W.ICON)
+	f.title = W.Heading(f, L.RADAR_TITLE, 13, W.C.text)
 	f.title:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-	f.title:SetTextColor(0.94, 0.78, 0.37)
 	local close = W.Button(f, "X", 20, 18)
 	close:SetPoint("TOPRIGHT", -6, -6)
 	close:SetScript("OnClick", function()
@@ -178,9 +177,9 @@ function RadarUI:Render()
 	end
 	local onMe = ns.Targeting and ns.Targeting:Count() or 0
 	if onMe > 0 then
-		f.title:SetText(L.RADAR_TITLE_ON:format(#list, onMe))
+		f.title:SetText(W.Caps(L.RADAR_TITLE_ON:format(#list, onMe)))
 	else
-		f.title:SetText(#list > 0 and L.RADAR_TITLE_N:format(#list) or L.RADAR_TITLE)
+		f.title:SetText(W.Caps(#list > 0 and L.RADAR_TITLE_N:format(#list) or L.RADAR_TITLE))
 	end
 	f.empty:SetShown(#list == 0)
 end

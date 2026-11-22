@@ -32,13 +32,13 @@ local function showProbe(lines)
 	local W = ns.W
 	local f = ns.probeFrame
 	if not f then
-		f = W.Panel(UIParent, "BloodFeudProbeFrame")
+		f = W.Panel(UIParent, "BusinessMeetingProbeFrame")
 		ns.probeFrame = f
 		f:SetSize(620, 460)
 		f:SetPoint("CENTER")
 		f:SetFrameStrata("DIALOG")
 		W.Movable(f)
-		tinsert(UISpecialFrames, "BloodFeudProbeFrame")
+		tinsert(UISpecialFrames, "BusinessMeetingProbeFrame")
 		local close = W.Button(f, L.CLOSE, 90, 24)
 		close:SetPoint("BOTTOMRIGHT", -12, 10)
 		close:SetScript("OnClick", function() f:Hide() end)
@@ -66,13 +66,13 @@ local function showProbe(lines)
 end
 
 local SETTINGS = { banner = true, sound = true, chat = true, nameplates = true, guildAlerts = true, sightSend = true,
-	sightShow = true, revenge = true, bountyAlerts = true, targetAlerts = true, targetSound = true, targetPet = true,
+	sightShow = true, revenge = true, dealBanner = true, bountyAlerts = true, targetAlerts = true, targetSound = true, targetPet = true,
 	stealthAlerts = true, radar = true,
 	radarAuto = true, radarSound = true, debug = true }
 -- Numeric settings: name -> { min, max }
 local NUMBERS = { revengeCount = { 2, 10 }, revengeWindow = { 5, 120 } }
 
---- /feud score [Name]: one enemy in detail, or my top feuds.
+--- /bm score [Name]: one enemy in detail, or my top feuds.
 local function showScore(rest)
 	local book = ns.Feuds:Book() or {}
 	local name = Names.Canon(rest or "", true)
@@ -111,7 +111,7 @@ local function showScore(rest)
 	end
 end
 
---- /feud users: who in the guild runs the addon.
+--- /bm users: who in the guild runs the addon.
 local function showUsers()
 	if not ns.session then
 		ns:Print(L.MSG_NO_GUILD)
@@ -130,8 +130,8 @@ local function showUsers()
 	if #list > 40 then ns:Print("   " .. L.MORE:format(#list - 40)) end
 end
 
---- /feud bounty [points] [gold] [note] with an enemy targeted (like /feud add,
---- everything typed is about the target), otherwise /feud bounty Name
+--- /bm bounty [points] [gold] [note] with an enemy targeted (like /bm add,
+--- everything typed is about the target), otherwise /bm bounty Name
 --- [points] [gold] [note]. "<Guild Name> ..." is a guild either way. Gold is
 --- a number with "g" or "gold" after it: "50g", "50 gold".
 local function postBounty(rest)
@@ -172,7 +172,7 @@ local function postBounty(rest)
 	ns:PostBounty(scope, name, tonumber(points), tail ~= "" and tail or nil, tonumber(gold))
 end
 
---- /feud rank: my rank; /feud rank set <n> <kills> <title> for officers.
+--- /bm rank: my rank; /bm rank set <n> <kills> <title> for officers.
 local function rankCommand(rest)
 	if rest:match("^set") then
 		local n, kills, title = rest:match("^set%s+(%d+)%s+(%d+)%s*(.*)$")
@@ -258,9 +258,9 @@ local function slash(input)
 			ns.settings[key] = math.min(math.max(math.floor(number), range[1]), range[2])
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
 		else
-			ns:Print("/feud set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|bountyAlerts|"
+			ns:Print("/bm set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|dealBanner|bountyAlerts|"
 				.. "targetAlerts|targetSound|targetPet|stealthAlerts|radar|radarAuto|radarSound|debug> on|off")
-			ns:Print("/feud set revengeCount <2-10> · /feud set revengeWindow <5-120 minutes>")
+			ns:Print("/bm set revengeCount <2-10> · /bm set revengeWindow <5-120 minutes>")
 		end
 	else
 		for i = 1, #L.HELP do ns:Print(L.HELP[i]) end
@@ -275,6 +275,24 @@ local MODULES = { "Roster", "Comm", "Users", "Detect", "Sightings", "Feuds", "Pr
 	"MainFrame", "RadarUI",
 	"Tooltip", "UnitMenu", "Nameplates", "Minimap", "Options" }
 
+--- The addon was Blood Feud until 0.4.0. Whatever is still installed under
+--- that name has done its job once its saved data is taken over: switch it
+--- off for the coming sessions, and say so if it was the old addon itself.
+local function retireOldName()
+	local addons = _G.C_AddOns
+	local loaded = false
+	if addons and addons.IsAddOnLoaded then
+		local ok, value = pcall(addons.IsAddOnLoaded, "BloodFeud")
+		loaded = ok and value and true or false
+	end
+	if not loaded and not ns.imported then return end
+	if addons and addons.DisableAddOn then pcall(addons.DisableAddOn, "BloodFeud") end
+	if ns.imported then ns:Print(L.MSG_IMPORTED) end
+	-- The stand-in that ships with this version announces itself; anything
+	-- else called Blood Feud is the old addon, running alongside this one.
+	if loaded and not _G.BloodFeudLegacy then ns:Print(L.MSG_OLD_ADDON) end
+end
+
 local function start()
 	-- Each part starts on its own, so one failure does not take the rest down.
 	for i = 1, #MODULES do
@@ -282,9 +300,12 @@ local function start()
 		ns.Safe(module.Init, module)
 	end
 
-	_G.SLASH_BLOODFEUD1 = "/feud"
-	_G.SLASH_BLOODFEUD2 = "/bloodfeud"
-	SlashCmdList["BLOODFEUD"] = function(input) ns.Safe(slash, input) end
+	_G.SLASH_BUSINESSMEETING1 = "/bm"
+	_G.SLASH_BUSINESSMEETING2 = "/meeting"
+	_G.SLASH_BUSINESSMEETING3 = "/feud" -- the command from when this was Blood Feud
+	SlashCmdList["BUSINESSMEETING"] = function(input) ns.Safe(slash, input) end
+
+	retireOldName()
 
 	C_Timer.After(8, function()
 		local session = ns.session

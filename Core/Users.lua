@@ -1,4 +1,4 @@
--- Who in the guild runs Blood Feud, and on which version.
+-- Who in the guild runs Business Meeting, and on which version.
 --
 -- Every client says so now and then on the guild's addon channel (a
 -- "presence" frame: version and protocol), and answers when someone asks.

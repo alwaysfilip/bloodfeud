@@ -22,9 +22,11 @@ Progress.PUBLISH_EVERY = 5 -- how often held-back totals are retried
 -- Ranks: built in, renamed and moved by officers through "t" records
 ---------------------------------------------------------------------------
 
+-- The built-in ranks: every killing blow on an enemy player is a confirmed kill.
 Progress.DEFAULT_TIERS = {
-	{ 1, "Recruit" }, { 10, "Skirmisher" }, { 25, "Raider" }, { 50, "Reaver" }, { 100, "Headhunter" },
-	{ 200, "Bloodletter" }, { 400, "Warbringer" }, { 750, "Slayer" }, { 1200, "Dread Hunter" }, { 2000, "Feudlord" },
+	{ 1, "Recruit" }, { 10, "Associate" }, { 25, "Operator" }, { 50, "Specialist" },
+	{ 100, "Enforcer" }, { 200, "Cleaner" }, { 400, "Assassin" }, { 750, "Ghost" },
+	{ 1200, "Phantom" }, { 2000, "Boogeyman" },
 }
 
 --- The guild's ladder: { {n, kills, title, custom}, ... } sorted by kills,
@@ -307,6 +309,10 @@ function Progress:OnKill(info, key, listed, e)
 	if clock and clock.hour and clock.hour < 5 then st.night = st.night + 1 end
 
 	if ns.Bounties then ns.Bounties:OnKill(info, key, st) end
+	if ns.settings.dealBanner and ns.Alerts and ns.Alerts.Deal then
+		local _, nextTier = Progress.RankFor(st.kills, Progress.Ladder(s and s.store))
+		ns.Alerts:Deal(info, st, nextTier)
+	end
 	celebrate(self:Check(st))
 	self:Publish()
 	ns:Fire("PROGRESS_CHANGED")

@@ -4,7 +4,7 @@
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 addons="${1:-/Applications/World of Warcraft/_forever_/Interface/AddOns}"
-target="$addons/BloodFeud"
+target="$addons/BusinessMeeting"
 
 if [ ! -d "$addons" ]; then
 	echo "AddOns folder not found: $addons" >&2

@@ -1,4 +1,29 @@
-# Blood Feud
+# Business Meeting - PvP
+
+## 0.4.0
+
+- New name: Blood Feud is now **Business Meeting - PvP**. Your saved data
+  comes along, and the addon still syncs with guildmates on 0.3.x. The
+  command is `/bm` (`/meeting` and the old `/feud` work too).
+- New language to go with the name: you are here on business. Enemy players
+  marked Kill on Sight are on the guild's hit list, with intel and who
+  sanctioned it. Enemy guilds are hostile guilds, a killing blow is a
+  confirmed kill, and bounties are contracts that are opened and fulfilled.
+  Whoever does not pay the gold for a fulfilled contract is blacklisted.
+  "Targeting you", "Stealth" and "Kill on Sight" are unchanged.
+- New built-in ranks, from Recruit to Boogeyman, and achievements are now
+  medals with new names. Ranks your officers have set themselves are kept.
+- The tabs are now Hit list, Guilds, Contracts, Ranks, Medals and Comms.
+- A "Kill confirmed" banner for each of your killing blows, with your count
+  and how far it is to the next rank. Can be turned off in the options.
+- A new look for every window: near-black panels with gold brackets in the
+  corners, titles, tabs and buttons in narrow capitals, and alert banners
+  whose brackets take the colour of the alert.
+- A new icon, a necktie in a crosshair, for the addon list, the minimap
+  button and the window.
+- If you installed by hand: unpack the new version into `Interface/AddOns` as
+  usual. It contains a small `BloodFeud` folder that hands your old data over
+  and then switches itself off; you can delete it after the first login.
 
 ## 0.3.1
 

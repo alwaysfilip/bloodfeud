@@ -11,7 +11,7 @@ local _, ns = ...
 local Util = ns.Util
 
 local Targeting = { on = {}, last = {}, tick = 0,
-	-- What the client let us find out, for /feud probe.
+	-- What the client let us find out, for /bm probe.
 	stats = { checks = 0, unknown = 0, hits = 0 } }
 ns.Targeting = Targeting
 

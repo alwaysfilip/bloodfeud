@@ -42,9 +42,9 @@ function Minimap:Apply()
 	local icon = self.icon
 	if not icon then return end
 	if ns.db.minimap.hide then
-		icon:Hide("BloodFeud")
+		icon:Hide("BusinessMeeting")
 	else
-		icon:Show("BloodFeud")
+		icon:Show("BusinessMeeting")
 	end
 end
 
@@ -53,31 +53,31 @@ function Minimap:Init()
 	if not libStub then return end
 	local broker = libStub:GetLibrary("LibDataBroker-1.1", true)
 	if not broker then return end
-	local object = broker:NewDataObject("BloodFeud", {
+	local object = broker:NewDataObject("BusinessMeeting", {
 		type = "launcher",
 		text = ns.TITLE,
-		icon = W.SKULL,
+		icon = W.ICON,
 		OnClick = function(_, button) onClick(button) end,
 		OnTooltipShow = fillTooltip,
 	})
 	local icon = libStub:GetLibrary("LibDBIcon-1.0", true)
 	if icon and object then
-		icon:Register("BloodFeud", object, ns.db.minimap)
+		icon:Register("BusinessMeeting", object, ns.db.minimap)
 		self.icon = icon
 	end
 end
 
 -- Entry in the minimap's addon compartment (declared in the .toc).
-function BloodFeud_OnAddonCompartmentClick(_, button)
+function BusinessMeeting_OnAddonCompartmentClick(_, button)
 	onClick(button)
 end
 
-function BloodFeud_OnAddonCompartmentEnter(_, menuButton)
+function BusinessMeeting_OnAddonCompartmentEnter(_, menuButton)
 	GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")
 	fillTooltip(GameTooltip)
 	GameTooltip:Show()
 end
 
-function BloodFeud_OnAddonCompartmentLeave()
+function BusinessMeeting_OnAddonCompartmentLeave()
 	GameTooltip:Hide()
 end

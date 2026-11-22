@@ -40,7 +40,7 @@ function Comm.Send(channel, text)
 	if ctl and ctl.SendAddonMessage then
 		-- ChatThrottleLib shares the client's bandwidth fairly between addons
 		-- and retries for us when the server reports a throttle.
-		local ok = pcall(ctl.SendAddonMessage, ctl, "NORMAL", prefix, text, "GUILD", nil, "BloodFeud", onSent, channel)
+		local ok = pcall(ctl.SendAddonMessage, ctl, "NORMAL", prefix, text, "GUILD", nil, "BusinessMeeting", onSent, channel)
 		return ok
 	end
 	local ok, result = pcall(_G.C_ChatInfo.SendAddonMessage, prefix, text, "GUILD")

@@ -1,16 +1,17 @@
 ## Interface: 16001
-## Title: Blood Feud
-## Notes: Guild-shared Kill on Sight list with a radar, bounties, ranks and achievements for world PvP.
+## Title: Business Meeting - PvP
+## Notes: Here on business. World PvP for your guild: a shared Kill on Sight hit list, radar, contracts paid in gold, ranks and medals.
+## OptionalDeps: BloodFeud
 ## Author: alwaysfilip
 ## Version: @project-version@
-## SavedVariables: BloodFeudDB
-## IconTexture: Interface\TargetingFrame\UI-RaidTargetingIcon_8
+## SavedVariables: BusinessMeetingDB
+## IconTexture: Interface\AddOns\BusinessMeeting\Media\icon
 ## Category: PvP
-## AddonCompartmentFunc: BloodFeud_OnAddonCompartmentClick
-## AddonCompartmentFuncOnEnter: BloodFeud_OnAddonCompartmentEnter
-## AddonCompartmentFuncOnLeave: BloodFeud_OnAddonCompartmentLeave
+## AddonCompartmentFunc: BusinessMeeting_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: BusinessMeeting_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: BusinessMeeting_OnAddonCompartmentLeave
 ## X-License: MIT
-## X-Website: https://github.com/alwaysfilip/bloodfeud
+## X-Website: https://github.com/alwaysfilip/business-meeting-pvp
 ## X-Curse-Project-ID: 1821147
 
 Libs\LibStub\LibStub.lua

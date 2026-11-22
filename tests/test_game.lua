@@ -27,7 +27,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(#loaded >= 25, "files loaded from the toc: " .. #loaded)
 	local Codec, Names = ns.Codec, ns.Names
 
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	noErrors(world)
@@ -39,9 +39,9 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(ns.Roster.IsOfficer("bjorn-ironside"), "guild master")
 	T.ok(not ns.Roster.IsOfficer("kari-frost"))
 	T.ok(not ns.Roster.AmOfficer())
-	T.ok(SlashCmdList.BLOODFEUD, "slash command registered")
+	T.ok(SlashCmdList.BUSINESSMEETING, "slash command registered")
 	T.ok(world.iconRegistered, "minimap button registered")
-	T.eq(world.checkboxes, 17, "options page built")
+	T.eq(world.checkboxes, 18, "options page built")
 	T.eq(world.sliders, 2, "revenge sliders built")
 
 	-- Names in their three shapes
@@ -53,7 +53,7 @@ T.test("game: a full session runs without Lua errors", function()
 
 	-- Add the target with a slash command
 	world.units.target = GRIMTUSK
-	SlashCmdList.BLOODFEUD("add Ganking lowbies in STV")
+	SlashCmdList.BUSINESSMEETING("add Ganking lowbies in STV")
 	noErrors(world)
 	local store = session.store
 	T.ok(store:IsListed("grimtusk-bloodaxe"), "target is on the list")
@@ -81,7 +81,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Fire("PLAYER_TARGET_CHANGED")
 	noErrors(world)
 	T.ok(chatHas(world, "Kill on Sight nearby", chatFrom), "chat alert")
-	T.ok(BloodFeudAlertBanner and BloodFeudAlertBanner:IsShown(), "banner shown")
+	T.ok(BusinessMeetingAlertBanner and BusinessMeetingAlertBanner:IsShown(), "banner shown")
 	T.eq(world.lastSound, 8959)
 	world.units.nameplate1 = GRIMTUSK
 	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
@@ -111,7 +111,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Advance(1)
 	noErrors(world)
 	T.ok(store:IsListed("vexara-nightfall"), "guildmate's entry stored")
-	T.ok(chatHas(world, "Kari Frost added Vexara Nightfall", chatFrom), "announced in chat")
+	T.ok(chatHas(world, "Kari Frost put Vexara Nightfall", chatFrom), "announced in chat")
 
 	-- A member cannot list a guild; an officer can
 	local guildByMember = Codec.Seal({ k = "g", name = "Red Ledger", author = "Kari-Frost", mby = "Kari-Frost", ts = now,
@@ -133,7 +133,7 @@ T.test("game: a full session runs without Lua errors", function()
 	chatFrom = #world.chat + 1
 	world:Fire("PLAYER_FOCUS_CHANGED")
 	noErrors(world)
-	T.ok(chatHas(world, "Listed guild nearby", chatFrom))
+	T.ok(chatHas(world, "Hostile guild nearby", chatFrom))
 	T.eq(world.lastSound, 3081)
 
 	-- Tooltip lines
@@ -145,7 +145,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world.tooltipUnit = "focus"
 	GameTooltip.lines = {}
 	world.tooltipHook(GameTooltip)
-	T.ok(table.concat(GameTooltip.lines, "\n"):find("Guild on the list", 1, true), "tooltip for a listed guild")
+	T.ok(table.concat(GameTooltip.lines, "\n"):find("Hostile guild", 1, true), "tooltip for a listed guild")
 
 	-- Right-click menu
 	local buttons = {}
@@ -157,17 +157,17 @@ T.test("game: a full session runs without Lua errors", function()
 	world.menus.MENU_UNIT_ENEMY_PLAYER(nil, root, { unit = "target", which = "ENEMY_PLAYER" })
 	T.eq(#buttons, 2)
 	T.ok(buttons[1].text:find("Remove", 1, true), "already listed by me: offers removal")
-	T.ok(buttons[2].text:find("bounty", 1, true), "and a bounty")
+	T.ok(buttons[2].text:find("contract", 1, true), "and a contract")
 	world.menus.MENU_UNIT_ENEMY_PLAYER(nil, root, { unit = "focus", which = "ENEMY_PLAYER" })
 	T.ok(buttons[3].text:find("Add", 1, true), "not listed by me: offers adding")
 	buttons[3].fn()
 	noErrors(world)
-	T.ok(BloodFeudAddDialog:IsShown(), "add dialog opened from the menu")
+	T.ok(BusinessMeetingAddDialog:IsShown(), "add dialog opened from the menu")
 	ns.AddDialog.frame.reason:SetText("Guild war")
 	ns.AddDialog:Submit()
 	noErrors(world)
 	T.ok(store:IsListed("dravok-ashmane"), "added from the dialog")
-	T.ok(not BloodFeudAddDialog:IsShown())
+	T.ok(not BusinessMeetingAddDialog:IsShown())
 
 	-- A sighting from a guildmate
 	chatFrom = #world.chat + 1
@@ -179,7 +179,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.eq(store:GetSeen("vexara-nightfall").by, "Kari-Frost")
 
 	-- The window
-	SlashCmdList.BLOODFEUD("")
+	SlashCmdList.BUSINESSMEETING("")
 	world:Advance(1)
 	noErrors(world)
 	local main = ns.MainFrame
@@ -213,12 +213,12 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(store:IsListed("vexara-nightfall"))
 
 	-- Typed add, with and without a surname
-	SlashCmdList.BLOODFEUD("remove dravok-ashmane")
+	SlashCmdList.BUSINESSMEETING("remove dravok-ashmane")
 	world.units.target = nil
-	SlashCmdList.BLOODFEUD("add shadowfel-grimm camping the flight path")
+	SlashCmdList.BUSINESSMEETING("add shadowfel-grimm camping the flight path")
 	T.ok(store:IsListed("shadowfel-grimm"))
 	T.eq(store:Player("shadowfel-grimm").reports[1].name, "Shadowfel-Grimm")
-	SlashCmdList.BLOODFEUD("add zulrakka")
+	SlashCmdList.BUSINESSMEETING("add zulrakka")
 	T.ok(store:IsListed("zulrakka"))
 	-- an entry typed with only a first name still matches the full name
 	world.units.target = { name = "Zulrakka", surname = "Venomtongue", guid = "Player-1-0000CCCC", isPlayer = true,
@@ -229,7 +229,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.eq(store:Player("zulrakka").facts.guid, "Player-1-0000CCCC", "and is now pinned to that character")
 	T.eq(store:Player("zulrakka").name, "Zulrakka-Venomtongue")
 	-- adding yourself is refused
-	SlashCmdList.BLOODFEUD("add olaf-stormborn")
+	SlashCmdList.BUSINESSMEETING("add olaf-stormborn")
 	T.ok(not store:IsListed("olaf-stormborn"))
 	noErrors(world)
 
@@ -237,7 +237,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Advance(15)
 	world.locked = true
 	local before = #world.sent
-	SlashCmdList.BLOODFEUD("add raidganker-foul killed me at the entrance")
+	SlashCmdList.BUSINESSMEETING("add raidganker-foul killed me at the entrance")
 	world:Advance(20)
 	T.eq(#world.sent, before, "silent while locked")
 	T.ok(#store:DirtyIds() >= 1, "kept as unsent")
@@ -250,7 +250,7 @@ T.test("game: a full session runs without Lua errors", function()
 	-- Everything else a player can type
 	for _, command in ipairs({ "log", "test", "help", "sync", "options", "set sound off", "set nonsense on",
 		"guild Red Ledger = camping", "remove nobody-here" }) do
-		SlashCmdList.BLOODFEUD(command)
+		SlashCmdList.BUSINESSMEETING(command)
 	end
 	T.eq(world.optionsOpened, 7)
 	T.eq(ns.settings.sound, false)
@@ -267,7 +267,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(report:find('"Aaaa", "Aaaaaaaaa"', 1, true), "names are masked to their shape")
 	T.ok(not report:find("Olaf", 1, true), "no real names in the report")
 	T.ok(not report:find("PROBE ERROR", 1, true), report)
-	T.ok(BloodFeudDB.probe and #BloodFeudDB.probe.lines > 30, "saved for reading from disk")
+	T.ok(BusinessMeetingDB.probe and #BusinessMeetingDB.probe.lines > 30, "saved for reading from disk")
 
 	-- Becoming an officer unlocks guild reports and removing others' reports
 	world.myRank = 1
@@ -275,7 +275,7 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Fire("GUILD_ROSTER_UPDATE")
 	world:Advance(2)
 	T.ok(ns.Roster.AmOfficer())
-	SlashCmdList.BLOODFEUD("guild Red Ledger = camping our raid")
+	SlashCmdList.BUSINESSMEETING("guild Red Ledger = camping our raid")
 	T.ok(store:IsGuildListed("Red Ledger"))
 	T.ok(ns:RemoveAll("r", "vexara-nightfall"))
 	T.ok(not store:IsListed("vexara-nightfall"))
@@ -286,8 +286,8 @@ T.test("game: a full session runs without Lua errors", function()
 	world:Fire("PLAYER_GUILD_UPDATE")
 	world:Advance(2)
 	T.eq(ns.session, nil)
-	T.ok(BloodFeudDB.guilds["Northwind Trading"], "list kept in saved variables")
-	SlashCmdList.BLOODFEUD("add someone")
+	T.ok(BusinessMeetingDB.guilds["Northwind Trading"], "list kept in saved variables")
+	SlashCmdList.BUSINESSMEETING("add someone")
 	T.ok(chatHas(world, "need to be in a guild"))
 	main:Refresh()
 	world:Advance(2)
@@ -295,12 +295,12 @@ T.test("game: a full session runs without Lua errors", function()
 end)
 
 T.test("game: kills, deaths, scores and the revenge prompt", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil -- a fresh install
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil -- a fresh install
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local store = ns.session.store
@@ -318,7 +318,7 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 	noErrors(world)
 	local book = ns.Feuds:Book()
 	T.eq(book["vexara-nightfall"].d, 1, "first death counted from the recap name")
-	T.ok(not (_G.BloodFeudRevengeFrame and _G.BloodFeudRevengeFrame:IsShown()), "no prompt after one death")
+	T.ok(not (_G.BusinessMeetingRevengeFrame and _G.BusinessMeetingRevengeFrame:IsShown()), "no prompt after one death")
 	world:Fire("PLAYER_DEAD") -- the same recap again must not count twice
 	world:Advance(2)
 	T.eq(book["vexara-nightfall"].d, 1, "a repeated recap counts once")
@@ -329,8 +329,8 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 	world:Advance(2)
 	noErrors(world)
 	T.eq(book["vexara-nightfall"].d, 2, "credited past an unidentified killing blow")
-	T.ok(_G.BloodFeudRevengeFrame and _G.BloodFeudRevengeFrame:IsShown(), "revenge offered on the second death")
-	T.ok(_G.BloodFeudRevengeFrame.text:GetText():find("2 times", 1, true), "prompt says how often")
+	T.ok(_G.BusinessMeetingRevengeFrame and _G.BusinessMeetingRevengeFrame:IsShown(), "revenge offered on the second death")
+	T.ok(_G.BusinessMeetingRevengeFrame.text:GetText():find("2 times", 1, true), "prompt says how often")
 
 	-- Accepting lists them with the suggested reason and publishes our score
 	ns.Revenge:Accept()
@@ -345,10 +345,10 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 
 	-- A third death within the window does not prompt again (already listed)
 	world.recap = { { sourceGUID = "Player-1-0000DDDD", timestamp = 300 } }
-	_G.BloodFeudRevengeFrame:Hide()
+	_G.BusinessMeetingRevengeFrame:Hide()
 	world:Fire("PLAYER_DEAD")
 	world:Advance(2)
-	T.ok(not _G.BloodFeudRevengeFrame:IsShown(), "no prompt for someone I already listed")
+	T.ok(not _G.BusinessMeetingRevengeFrame:IsShown(), "no prompt for someone I already listed")
 	T.ok(chatHas(world, "Killed by"), "death by a listed player is announced")
 
 	-- Our killing blow, with them targeted
@@ -356,7 +356,7 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000DDDD")
 	noErrors(world)
 	T.eq(book["vexara-nightfall"].k, 1, "kill counted")
-	T.ok(chatHas(world, "You killed"), "kill announced")
+	T.ok(chatHas(world, "Kill confirmed:"), "kill announced")
 	-- Someone else's kill is not ours
 	world:Fire("PARTY_KILL", "Player-1-00000099", "Player-1-0000DDDD")
 	T.eq(book["vexara-nightfall"].k, 1, "a party member's kill is theirs to count")
@@ -387,9 +387,9 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 	-- The window and the score command run cleanly
 	ns.MainFrame:Toggle()
 	world:Advance(1)
-	SlashCmdList.BLOODFEUD("score")
-	SlashCmdList.BLOODFEUD("score Vexara-Nightfall")
-	T.ok(chatHas(world, "Guild score: 51 kills, 3 deaths"))
+	SlashCmdList.BUSINESSMEETING("score")
+	SlashCmdList.BUSINESSMEETING("score Vexara-Nightfall")
+	T.ok(chatHas(world, "Guild record: kills 51, deaths 3"))
 	noErrors(world)
 
 	-- Inside an instance nothing is counted
@@ -400,16 +400,16 @@ T.test("game: kills, deaths, scores and the revenge prompt", function()
 	world:Advance(2)
 	T.eq(book["vexara-nightfall"].d, 3, "battleground deaths are not counted")
 	noErrors(world)
-	BloodFeudDB = keep -- the next test reloads the first session's data
+	BusinessMeetingDB = keep -- the next test reloads the first session's data
 end)
 
 T.test("game: saved variables survive a reload", function()
-	local saved = BloodFeudDB
+	local saved = BusinessMeetingDB
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 } }
-	BloodFeudDB = saved
+	BusinessMeetingDB = saved
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
@@ -423,12 +423,12 @@ T.test("game: saved variables survive a reload", function()
 end)
 
 T.test("game: radar, bounties, ranks and achievements", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 }, { "Astrid-Vale", 1 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	noErrors(world)
@@ -438,16 +438,16 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	-- The radar picks up an enemy and shows itself (radar on, auto mode)
 	local MORG = { name = "Morgash", surname = "Gorefist", guid = "Player-1-0000EEEE", isPlayer = true, enemy = true,
 		faction = "Horde", class = 1, race = 2, level = 60, guild = "Hostile Takeover" }
-	T.ok(not (_G.BloodFeudRadarFrame and _G.BloodFeudRadarFrame:IsShown()), "radar hidden with nobody around")
+	T.ok(not (_G.BusinessMeetingRadarFrame and _G.BusinessMeetingRadarFrame:IsShown()), "radar hidden with nobody around")
 	world.units.nameplate3 = MORG
 	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
 	world:Advance(1)
 	noErrors(world)
-	T.ok(_G.BloodFeudRadarFrame and _G.BloodFeudRadarFrame:IsShown(), "radar appears")
+	T.ok(_G.BusinessMeetingRadarFrame and _G.BusinessMeetingRadarFrame:IsShown(), "radar appears")
 	local visible = ns.Radar:Visible()
 	T.eq(#visible, 1)
 	T.eq(visible[1].tag, 0, "an ordinary enemy")
-	T.ok(_G.BloodFeudRadarFrame.rows[1].name:GetText():find("Morgash Gorefist", 1, true))
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].name:GetText():find("Morgash Gorefist", 1, true))
 
 	-- A guildmate posts a bounty on him: it is announced, tagged and alerted
 	local now = GetServerTime()
@@ -458,16 +458,16 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	world:Advance(1)
 	noErrors(world)
 	T.ok(store:HasBounty("p", "morgash-gorefist"), "bounty stored")
-	T.ok(chatHas(world, "Kari Frost put a bounty on Morgash Gorefist: 25 points, 50 gold", chatFrom), "announced")
+	T.ok(chatHas(world, "Kari Frost opened a contract on Morgash Gorefist: 25 points, 50 gold", chatFrom), "announced")
 	T.eq(ns.Radar:Visible()[1].tag, 2, "radar tags the bounty")
 	-- His nameplate is still up, and is looked at again now that he has a price
-	T.ok(chatHas(world, "Bounty nearby", chatFrom), "bounty alert")
+	T.ok(chatHas(world, "Open contract nearby", chatFrom), "bounty alert")
 	world.units.target = MORG
 	world:Fire("PLAYER_TARGET_CHANGED")
 	world.tooltipUnit = "target"
 	GameTooltip.lines = {}
 	world.tooltipHook(GameTooltip)
-	T.ok(table.concat(GameTooltip.lines, "\n"):find("Bounty: 25 points", 1, true), "tooltip shows the bounty")
+	T.ok(table.concat(GameTooltip.lines, "\n"):find("Open contract: 25 points", 1, true), "tooltip shows the bounty")
 
 	-- Our killing blow claims it, counts toward rank and earns achievements
 	chatFrom = #world.chat + 1
@@ -477,14 +477,14 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	local claim = store:Get(Codec.ClaimId("p", "morgash-gorefist", "kari-frost", "olaf-stormborn"))
 	T.ok(claim, "claim written")
 	T.eq(claim.count, 1)
-	T.ok(chatHas(world, "Bounty claimed", chatFrom), "we are told")
+	T.ok(chatHas(world, "Contract fulfilled", chatFrom), "we are told")
 	local st = Progress:Stats()
 	T.eq(st.kills, 1)
 	T.eq(st.points, 25)
 	T.eq(st.claims, 1)
 	T.ok(st.earned[1], "First Blood")
 	T.ok(st.earned[24], "Bounty Hunter")
-	T.ok(chatHas(world, "Achievement: |cfff0c75eFirst Blood", chatFrom))
+	T.ok(chatHas(world, "Medal earned: |cfff0c75eFirst Blood", chatFrom))
 	-- Right after login nothing is published yet: the guild may still be
 	-- about to send what it remembers of us.
 	T.eq(store:Member("olaf-stormborn"), nil, "totals held back just after login")
@@ -512,7 +512,7 @@ T.test("game: radar, bounties, ranks and achievements", function()
 
 	-- Posting our own bounty, from the slash command (nobody targeted: by name)
 	world.units.target = nil
-	SlashCmdList.BLOODFEUD("bounty zulrakka-venomtongue 15 a fine axe")
+	SlashCmdList.BUSINESSMEETING("bounty zulrakka-venomtongue 15 a fine axe")
 	noErrors(world)
 	local mine = store:Get(Codec.BountyId("p", "zulrakka-venomtongue", "olaf-stormborn"))
 	T.ok(mine, "bounty posted")
@@ -520,15 +520,15 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	T.eq(mine.reward, "a fine axe")
 	T.ok(st.earned[26], "Price on Their Head")
 	-- Posting again without points or reward keeps what it had
-	SlashCmdList.BLOODFEUD("bounty zulrakka-venomtongue")
+	SlashCmdList.BUSINESSMEETING("bounty zulrakka-venomtongue")
 	mine = store:Get(mine.id)
 	T.eq(mine.points, 15, "points kept")
 	T.eq(mine.reward, "a fine axe", "reward kept")
-	SlashCmdList.BLOODFEUD("bounty zulrakka-venomtongue 30")
+	SlashCmdList.BUSINESSMEETING("bounty zulrakka-venomtongue 30")
 	mine = store:Get(mine.id)
 	T.eq(mine.points, 30, "points changed")
 	T.eq(mine.reward, "a fine axe", "reward still kept")
-	SlashCmdList.BLOODFEUD("bounty <Red Ledger> 5")
+	SlashCmdList.BUSINESSMEETING("bounty <Red Ledger> 5")
 	T.ok(store:HasBounty("g", "red ledger"), "a bounty on a whole guild")
 	-- Our own bounty pays us nothing
 	local ZUL = { name = "Zulrakka", surname = "Venomtongue", guid = "Player-1-0000FFFF", isPlayer = true, enemy = true,
@@ -552,15 +552,15 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	world:Receive("BloodFeud", (Codec.EncodeUpdate(Codec.Bucket(m2.id), 1, 1, { m2.wire })), "Kari-Frost")
 	world:Advance(1)
 	noErrors(world)
-	T.ok(chatHas(world, "Kari Frost earned |cfff0c75eBlooded", chatFrom), "achievement announced")
-	T.ok(chatHas(world, "Kari Frost is now |cfff0c75eSkirmisher", chatFrom), "rank-up announced")
+	T.ok(chatHas(world, "Kari Frost earned a medal: |cfff0c75eBlooded", chatFrom), "achievement announced")
+	T.ok(chatHas(world, "Kari Frost now holds the rank of |cfff0c75eAssociate", chatFrom), "rank-up announced")
 	-- Their rank in their tooltip
 	world.units.mouseover = { name = "Kari", surname = "Frost", guid = "Player-1-00000002", isPlayer = true,
 		faction = "Alliance", class = 4, race = 1, level = 60, guildmate = true }
 	world.tooltipUnit = "mouseover"
 	GameTooltip.lines = {}
 	world.tooltipHook(GameTooltip)
-	T.ok(table.concat(GameTooltip.lines, "\n"):find("Blood Feud: Skirmisher (10 kills)", 1, true), "guildmate's rank")
+	T.ok(table.concat(GameTooltip.lines, "\n"):find("Business Meeting: Associate (confirmed kills: 10)", 1, true), "guildmate's rank")
 
 	-- Only officers change the ladder; an officer's change renames the rank
 	T.eq(ns:SetTier(2, 10, "Bloodhound"), nil, "a member cannot edit ranks")
@@ -605,7 +605,7 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	T.ok(not main.frame.add:IsShown(), "only officers see Edit ranks")
 	main:SetTab("a")
 	T.eq(#main.items, #ns.Achievements)
-	T.ok(main.frame.notice:GetText():find("of " .. #ns.Achievements .. " earned", 1, true))
+	T.ok(main.frame.notice:GetText():find("of " .. #ns.Achievements .. " medals earned", 1, true))
 
 	-- Taking our bounty down from the board
 	main:SetTab("b")
@@ -623,11 +623,11 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	ns.BountyDialog:Submit()
 	T.eq(store:Get(Codec.BountyId("p", "morgash-gorefist", "olaf-stormborn")).points, 40, "posted from the dialog")
 	ns.RanksDialog:Open()
-	T.ok(not (_G.BloodFeudRanksDialog and _G.BloodFeudRanksDialog:IsShown()), "ranks dialog is for officers")
-	SlashCmdList.BLOODFEUD("rank")
-	SlashCmdList.BLOODFEUD("radar")
+	T.ok(not (_G.BusinessMeetingRanksDialog and _G.BusinessMeetingRanksDialog:IsShown()), "ranks dialog is for officers")
+	SlashCmdList.BUSINESSMEETING("rank")
+	SlashCmdList.BUSINESSMEETING("radar")
 	T.eq(ns.settings.radar, false, "radar toggled off")
-	T.ok(not _G.BloodFeudRadarFrame:IsShown())
+	T.ok(not _G.BusinessMeetingRadarFrame:IsShown())
 	noErrors(world)
 
 	-- Reinstall: the guild remembers our totals
@@ -637,16 +637,16 @@ T.test("game: radar, bounties, ranks and achievements", function()
 	T.eq(Progress:Stats().kills, 4, "totals adopted from the guild after a wipe")
 	T.ok(Progress:Stats().earned[1], "and the achievements")
 	noErrors(world)
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: totals survive a reinstall, and are published at login", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local store, Codec, Progress = ns.session.store, ns.Codec, ns.Progress
@@ -663,7 +663,7 @@ T.test("game: totals survive a reinstall, and are published at login", function(
 	T.eq(st.points, 75)
 	T.ok(st.earned[1] and st.earned[2] and st.earned[3], "achievements too")
 	T.eq(store:Member("olaf-stormborn").kills, 120, "the guild's record is not overwritten with zeros")
-	T.eq(Progress:MyRank().title, "Headhunter")
+	T.eq(Progress:MyRank().title, "Enforcer")
 
 	-- From there the count goes on
 	world.units.target = { name = "Vexara", surname = "Nightfall", guid = "Player-1-0000DDDD", isPlayer = true,
@@ -688,7 +688,7 @@ T.test("game: totals survive a reinstall, and are published at login", function(
 
 	-- A reload: the guild is bound before the totals module starts, and the
 	-- totals still go out without any fight (here: changed while offline).
-	local saved = BloodFeudDB
+	local saved = BusinessMeetingDB
 	saved.stats["olaf-stormborn"].kills = 230
 	-- A guildmate saying anything at all is enough to know we are not alone
 	local function hello(w, n)
@@ -698,9 +698,9 @@ T.test("game: totals survive a reinstall, and are published at login", function(
 	end
 	local world2 = Stub.Install()
 	world2.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
-	BloodFeudDB = saved
+	BusinessMeetingDB = saved
 	local ns2 = world2:LoadAddon(T.root)
-	world2:Fire("ADDON_LOADED", "BloodFeud")
+	world2:Fire("ADDON_LOADED", "BusinessMeeting")
 	world2:Fire("PLAYER_LOGIN")
 	world2:Advance(ns2.Progress.HOLD_SECONDS + 60)
 	T.eq(ns2.session.store:Member("olaf-stormborn").kills, 201, "alone, nothing is written")
@@ -711,27 +711,27 @@ T.test("game: totals survive a reinstall, and are published at login", function(
 	T.eq(ns2.session.store:Member("olaf-stormborn").kills, 230, "published once a guildmate is around")
 
 	-- A brand-new install with nothing to tell publishes nothing
-	BloodFeudDB = nil
+	BusinessMeetingDB = nil
 	local world3 = Stub.Install()
 	world3.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
 	local ns3 = world3:LoadAddon(T.root)
-	world3:Fire("ADDON_LOADED", "BloodFeud")
+	world3:Fire("ADDON_LOADED", "BusinessMeeting")
 	world3:Fire("PLAYER_LOGIN")
 	world3:Advance(3)
 	hello(world3, ns3)
 	world3:Advance(ns3.Progress.HOLD_SECONDS + 2 * ns3.Progress.PUBLISH_EVERY)
 	T.eq(ns3.session.store:Member("olaf-stormborn"), nil, "no empty record")
 	T.eq(#ns3.Progress:Roll(), 1, "my own row is shown all the same")
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: bounty, radar and streak edge cases", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 }, { "Astrid-Vale", 1 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local store, Codec, Progress = ns.session.store, ns.Codec, ns.Progress
@@ -765,24 +765,24 @@ T.test("game: bounty, radar and streak edge cases", function()
 	local MORG = enemy("Morgash", "Gorefist", "Player-1-0000EEEE", { guild = "Hostile Takeover" })
 	local chatFrom = #world.chat + 1
 	plate(1, MORG)
-	T.ok(chatHas(world, "Listed guild nearby", chatFrom))
-	T.ok(chatHas(world, "Bounty: 20 points", chatFrom), "the guild alert mentions the bounty")
+	T.ok(chatHas(world, "Hostile guild nearby", chatFrom))
+	T.ok(chatHas(world, "Open contract: 20 points", chatFrom), "the guild alert mentions the bounty")
 	-- and with guild alerts switched off, the bounty alert takes over
 	ns.settings.guildAlerts = false
 	world:Advance(61)
 	chatFrom = #world.chat + 1
 	world.units.target = MORG
 	world:Fire("PLAYER_TARGET_CHANGED")
-	T.ok(chatHas(world, "Bounty nearby", chatFrom), "bounty alert without the guild alert")
+	T.ok(chatHas(world, "Open contract nearby", chatFrom), "bounty alert without the guild alert")
 	ns.settings.guildAlerts = true
 
 	-- With an enemy targeted, /feud bounty is about them, whatever is typed
-	SlashCmdList.BLOODFEUD("bounty a fine axe")
+	SlashCmdList.BUSINESSMEETING("bounty a fine axe")
 	local mine = store:Get(Codec.BountyId("p", "morgash-gorefist", "olaf-stormborn"))
 	T.eq(mine.reward, "a fine axe", "everything typed is the reward")
 	T.eq(mine.points, 20, "points kept")
 	T.eq(store:Get(Codec.BountyId("p", "a", "olaf-stormborn")), nil, "no bounty on a player called A")
-	SlashCmdList.BLOODFEUD("bounty 25")
+	SlashCmdList.BUSINESSMEETING("bounty 25")
 	mine = store:Get(mine.id)
 	T.eq(mine.points, 25)
 	T.eq(mine.reward, "a fine axe")
@@ -817,11 +817,11 @@ T.test("game: bounty, radar and streak edge cases", function()
 		at = now, points = 30, reward = "" }), "Kari-Frost")
 	chatFrom = #world.chat + 1
 	plate(2, enemy("Grimtusk", "Bloodaxe", "Player-1-0000AAAA"))
-	T.ok(chatHas(world, "Bounty nearby", chatFrom), "first-name bounty alerts for Grimtusk Bloodaxe")
+	T.ok(chatHas(world, "Open contract nearby", chatFrom), "first-name bounty alerts for Grimtusk Bloodaxe")
 	world:Fire("PARTY_KILL", ME, "Player-1-0000AAAA")
 	T.ok(store:Get(Codec.ClaimId("p", "grimtusk", "kari-frost", "olaf-stormborn")), "and pays out")
 	chatFrom = #world.chat + 1
-	SlashCmdList.BLOODFEUD("bounty Sylveth 5")
+	SlashCmdList.BUSINESSMEETING("bounty Sylveth 5")
 	T.ok(chatHas(world, "No surname given", chatFrom), "the poster is told what a first name means")
 
 	-- A streak ends with any death, also one whose killer we never saw
@@ -838,7 +838,7 @@ T.test("game: bounty, radar and streak edge cases", function()
 	T.ok(not st.earned[7], "no Hat Trick across a death")
 
 	-- A first-name entry pinned to one character is not its namesakes
-	SlashCmdList.BLOODFEUD("add zulrakka camping the graveyard")
+	SlashCmdList.BUSINESSMEETING("add zulrakka camping the graveyard")
 	plate(3, enemy("Zulrakka", "Venomtongue", "Player-1-0000FFFF"))
 	world:Advance(1)
 	T.eq(store:Player("zulrakka").facts.guid, "Player-1-0000FFFF", "pinned")
@@ -889,17 +889,17 @@ T.test("game: bounty, radar and streak edge cases", function()
 	world:Fire("PARTY_KILL", ME, "Player-1-00002222")
 	T.ok(st.earned[22], "Giant Slayer")
 	noErrors(world)
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: an officer edits the ranks", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.myRank = 1
 	world.roster = { { "Olaf-Stormborn", 1 }, { "Kari-Frost", 5 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local store = ns.session.store
@@ -908,13 +908,13 @@ T.test("game: an officer edits the ranks", function()
 	ns.RanksDialog:Open()
 	local f = ns.RanksDialog.frame
 	T.ok(f:IsShown())
-	T.eq(f.rows[2].title:GetText(), "Skirmisher", "starts from the built-in ranks")
+	T.eq(f.rows[2].title:GetText(), "Associate", "starts from the built-in ranks")
 	-- a title without a kill count is not dropped silently
 	f.rows[11].title:SetText("Legend")
 	f.rows[11].kills:SetText("")
 	local chatFrom = #world.chat + 1
 	ns.RanksDialog:Submit()
-	T.ok(chatHas(world, "needs a kill count", chatFrom))
+	T.ok(chatHas(world, "needs a number of kills", chatFrom))
 	T.ok(f:IsShown(), "the dialog stays open")
 	T.eq(store:Tiers()[11], nil)
 	f.rows[11].kills:SetText("3000")
@@ -927,21 +927,21 @@ T.test("game: an officer edits the ranks", function()
 	T.eq(ns.Progress.RankFor(5000, ns.Progress.Ladder(store)).title, "Legend")
 
 	chatFrom = #world.chat + 1
-	SlashCmdList.BLOODFEUD("rank set 13 5 Foo")
-	T.ok(chatHas(world, "/feud rank set <1-12>", chatFrom), "out-of-range tier explains itself")
-	SlashCmdList.BLOODFEUD("rank set 3 30 Marauder")
+	SlashCmdList.BUSINESSMEETING("rank set 13 5 Foo")
+	T.ok(chatHas(world, "/bm rank set <1-12>", chatFrom), "out-of-range tier explains itself")
+	SlashCmdList.BUSINESSMEETING("rank set 3 30 Marauder")
 	T.eq(store:Tiers()[3].kills, 30)
 	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: gold bounties, payment by mail and trade, and dishonor", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 }, { "Astrid-Vale", 1 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	noErrors(world)
@@ -978,13 +978,13 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	T.ok(chatHas(world, "25 points and 50 gold to the first kill", chatFrom), "announced with its gold")
 	world.units.target = enemy("Morgash", "Gorefist", "Player-1-0000EEEE")
 	world:Fire("PLAYER_TARGET_CHANGED")
-	T.ok(chatHas(world, "Bounty: 25 points and 50 gold", chatFrom), "the alert names the gold")
+	T.ok(chatHas(world, "Open contract: 25 points and 50 gold", chatFrom), "the alert names the gold")
 	chatFrom = #world.chat + 1
 	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
 	world:Advance(1)
 	noErrors(world)
 	T.eq(store:Winner(store:Get(onMorgash.id)).author, "Olaf-Stormborn", "I won it")
-	T.ok(chatHas(world, "You won the bounty on Morgash Gorefist. Kari Frost owes you 50 gold", chatFrom))
+	T.ok(chatHas(world, "You fulfilled the contract on Morgash Gorefist. Kari Frost owes you 50 gold", chatFrom))
 	local st = Progress:Stats()
 	T.eq(st.points, 25)
 	world:Fire("PARTY_KILL", ME, "Player-1-0000EEEE")
@@ -995,7 +995,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	-- She sends it by mail; I am told, and my mailbox confirms it
 	chatFrom = #world.chat + 1
 	receive(mark(onMorgash, "s", "s", "Kari-Frost"), "Kari-Frost")
-	T.ok(chatHas(world, "Kari Frost says the 50 gold for the bounty on Morgash Gorefist is sent", chatFrom))
+	T.ok(chatHas(world, "Kari Frost says the 50 gold for the contract on Morgash Gorefist is sent", chatFrom))
 	T.eq(debt(onMorgash).state, "sent")
 	world.inbox = { { sender = "Thrall", subject = "Hello", money = 0 },
 		{ sender = "Kari Frost", subject = "Bounty", money = 50 * GOLD } }
@@ -1024,7 +1024,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 
 	-- Now I am the poster. A slash command with gold, and Kari wins it
 	world.units.target, world.units.focus = nil, nil
-	SlashCmdList.BLOODFEUD("bounty grimtusk-bloodaxe 20 30g for the camping")
+	SlashCmdList.BUSINESSMEETING("bounty grimtusk-bloodaxe 20 30g for the camping")
 	local mine = T.ok(store:Get(Codec.BountyId("p", "grimtusk-bloodaxe", "olaf-stormborn")))
 	T.eq(mine.points, 20)
 	T.eq(mine.gold, 30)
@@ -1035,14 +1035,14 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	end
 	chatFrom = #world.chat + 1
 	receive(claimBy(mine, "Kari-Frost"), "Kari-Frost")
-	T.ok(chatHas(world, "Kari Frost won your bounty on Grimtusk Bloodaxe. You owe them 30 gold", chatFrom))
+	T.ok(chatHas(world, "Kari Frost fulfilled your contract on Grimtusk Bloodaxe. You owe them 30 gold", chatFrom))
 	T.eq(debt(mine).state, "owed")
 	T.ok(not ns:RemoveBounty(mine.id), "a won bounty cannot be taken down unpaid")
-	SlashCmdList.BLOODFEUD("bounty grimtusk-bloodaxe 20 1g")
+	SlashCmdList.BUSINESSMEETING("bounty grimtusk-bloodaxe 20 1g")
 	T.eq(store:Get(mine.id).gold, 30, "nor have its gold lowered")
 	chatFrom = #world.chat + 1
-	SlashCmdList.BLOODFEUD("debts")
-	T.ok(chatHas(world, "You owe Kari Frost 30 gold for the bounty on Grimtusk Bloodaxe (47 h left)", chatFrom))
+	SlashCmdList.BUSINESSMEETING("debts")
+	T.ok(chatHas(world, "you owe Kari Frost 30 gold for the contract on Grimtusk Bloodaxe (47 h left)", chatFrom))
 
 	-- Too little gold in the mail does not count; the full amount does
 	_G.SetSendMailMoney(10 * GOLD)
@@ -1063,7 +1063,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	T.ok(ns:RemoveBounty(mine.id), "paid: now it can come down")
 
 	-- Paying in a trade, seen from the poster's side
-	SlashCmdList.BLOODFEUD("bounty vexara-nightfall 5 10 gold")
+	SlashCmdList.BUSINESSMEETING("bounty vexara-nightfall 5 10 gold")
 	local onVex = T.ok(store:Get(Codec.BountyId("p", "vexara-nightfall", "olaf-stormborn")))
 	T.eq(onVex.gold, 10, "'10 gold' is gold too")
 	T.eq(onVex.points, 5)
@@ -1139,15 +1139,15 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	end
 	local row = T.ok(rowOf(onGor.id), "the won bounty is on the board")
 	T.ok(row.cells[3]:GetText():find("40g", 1, true), "gold column")
-	T.ok(row.cells[6]:GetText():find("Won by Olaf Stormborn", 1, true), row.cells[6]:GetText())
-	T.ok(row.cells[6]:GetText():find("owed, 47 h left", 1, true), row.cells[6]:GetText())
+	T.ok(row.cells[6]:GetText():find("Fulfilled by Olaf Stormborn", 1, true), row.cells[6]:GetText())
+	T.ok(row.cells[6]:GetText():find("payment due, 47 h left", 1, true), row.cells[6]:GetText())
 	row.scripts.OnEnter(row)
 	row.scripts.OnLeave(row)
-	T.ok(rowOf(onDravok.id).cells[6]:GetText():find("first kill wins", 1, true), "an open gold bounty says so")
+	T.ok(rowOf(onDravok.id).cells[6]:GetText():find("first kill takes the gold", 1, true), "an open gold bounty says so")
 	main.selected = onGor.id
 	main:UpdateActions()
 	T.ok(main.frame.edit:IsShown() and main.frame.edit:IsEnabled(), "the winner can mark it paid")
-	T.eq(main.frame.edit.label:GetText(), "Mark as paid")
+	T.eq(main.frame.edit.label:GetText(), "MARK AS PAID")
 	T.ok(not main.frame.bounty:IsEnabled(), "nothing to dispute before she says it is sent")
 	T.ok(not main.frame.removeAll:IsShown(), "settling is for officers")
 	receive(mark(onGor, "s", "s", "Kari-Frost"), "Kari-Frost")
@@ -1177,8 +1177,8 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	world:Advance(Debts.CHECK_EVERY + 1)
 	noErrors(world)
 	T.ok(debt(onHak).late and debt(onDravok).late)
-	T.ok(chatHas(world, "Kari Frost is now |cffff8a80Dishonored|r: 60 gold owed to Olaf Stormborn", chatFrom), "the guild hears of it")
-	T.ok(chatHas(world, "You are |cffff8a80Dishonored|r: the 75 gold you owe Kari Frost", chatFrom), "and so do I, of mine")
+	T.ok(chatHas(world, "Kari Frost is now |cffff8a80blacklisted|r: 60 gold owed to Olaf Stormborn", chatFrom), "the guild hears of it")
+	T.ok(chatHas(world, "You are |cffff8a80blacklisted|r: the 75 gold you owe Kari Frost", chatFrom), "and so do I, of mine")
 	T.eq(Debts:Dishonor("kari-frost").gold, 60)
 	local kari, me
 	for _, m in ipairs(Progress:Roll()) do
@@ -1190,7 +1190,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	world.tooltipUnit = "mouseover"
 	GameTooltip.lines = {}
 	world.tooltipHook(GameTooltip)
-	T.ok(table.concat(GameTooltip.lines, "\n"):find("Dishonored|r (owes 60 gold to Olaf Stormborn)", 1, true), "in her tooltip")
+	T.ok(table.concat(GameTooltip.lines, "\n"):find("Blacklisted|r (owes 60 gold to Olaf Stormborn)", 1, true), "in her tooltip")
 	T.ok(me.dishonored, "my own row is marked")
 	main:SetTab("m")
 	world:Advance(1)
@@ -1198,12 +1198,12 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	for _, r in ipairs(main.frame.rows) do
 		if r:IsShown() and r.item and r.item.me then mineRow = r end
 	end
-	T.ok(mineRow.cells[2]:GetText():find("Dishonored", 1, true), "no rank while in disgrace")
+	T.ok(mineRow.cells[2]:GetText():find("Blacklisted", 1, true), "no rank while in disgrace")
 	T.ok(mineRow.cells[6]:GetText():find("|r", 1, true) and mineRow.cells[6]:GetText():find("0", 1, true), "bounty points count for nothing")
 	mineRow.scripts.OnEnter(mineRow)
 	mineRow.scripts.OnLeave(mineRow)
 	chatFrom = #world.chat + 1
-	SlashCmdList.BLOODFEUD("bounty someone-else 5")
+	SlashCmdList.BUSINESSMEETING("bounty someone-else 5")
 	T.eq(store:Get(Codec.BountyId("p", "someone-else", "olaf-stormborn")), nil, "no new bounties while Dishonored")
 	T.ok(chatHas(world, "pay the 75 gold you owe Kari Frost", chatFrom))
 	noErrors(world)
@@ -1214,7 +1214,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	world:Fire("MAIL_SEND_SUCCESS")
 	T.eq(debt(onDravok).state, "sent")
 	T.eq(Debts:Dishonor("olaf-stormborn"), nil, "paid up: no longer Dishonored")
-	SlashCmdList.BLOODFEUD("bounty someone-else 5")
+	SlashCmdList.BUSINESSMEETING("bounty someone-else 5")
 	T.ok(store:Get(Codec.BountyId("p", "someone-else", "olaf-stormborn")), "and bounties can be posted again")
 
 	-- An officer settles Kari's debt: her name is cleared too
@@ -1222,7 +1222,7 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	receive(mark(onHak, "o", "o", "Astrid-Vale"), "Astrid-Vale")
 	T.eq(debt(onHak).state, "settled")
 	T.eq(Debts:Dishonor("kari-frost"), nil)
-	T.ok(chatHas(world, "Astrid Vale settled the debt for the bounty on Hakkar Bloodtusk", chatFrom))
+	T.ok(chatHas(world, "Astrid Vale settled the debt for the contract on Hakkar Bloodtusk", chatFrom))
 	-- A member's attempt to settle is refused
 	local onLast = bountyBy("Kari-Frost", "Morgash-Gorefist", 5, 5)
 	receive(Codec.Seal({ k = "B", scope = "p", name = "Morgash-Gorefist", author = "Kari-Frost", mby = "Kari-Frost",
@@ -1239,17 +1239,17 @@ T.test("game: gold bounties, payment by mail and trade, and dishonor", function(
 	T.eq(debt(onLast).state, "owed", "the debtor cannot settle her own debt")
 	T.eq(ns:SettleDebt(onLast.id, true), nil, "nor can I, as a member")
 	noErrors(world)
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: an officer settles a debt from the board", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.myRank = 1
 	world.roster = { { "Olaf-Stormborn", 1 }, { "Kari-Frost", 5 }, { "Per-Hauk", 5 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local store, Codec = ns.session.store, ns.Codec
@@ -1270,7 +1270,7 @@ T.test("game: an officer settles a debt from the board", function()
 	main:UpdateActions()
 	T.ok(not main.frame.edit:IsShown(), "neither poster nor winner: no say of my own")
 	T.ok(main.frame.removeAll:IsShown() and main.frame.removeAll:IsEnabled(), "but an officer can settle")
-	T.eq(main.frame.removeAll.label:GetText(), "Settle the debt (officer)")
+	T.eq(main.frame.removeAll.label:GetText(), "SETTLE THE DEBT (OFFICER)")
 	main.frame.removeAll:Click()
 	T.eq(store:Debt(store:Get(b.id), GetServerTime()).state, "settled")
 	main:UpdateActions()
@@ -1284,18 +1284,18 @@ T.test("game: an officer settles a debt from the board", function()
 	T.ok(ns:RemoveBounty(b2.id))
 	T.eq(#store:Debts(GetServerTime()), 1, "only the settled one is left")
 	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: who in the guild runs the addon", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	-- name, rank, online
 	world.roster = { { "Olaf-Stormborn", 3, true }, { "Kari-Frost", 5, true }, { "Per-Hauk", 5, false },
 		{ "Astrid-Vale", 1, true }, { "Ingrid-Dahl", 5, true }, { "Bjorn-Ironside", 0, false } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local Codec, Users = ns.Codec, ns.Users
@@ -1364,7 +1364,7 @@ T.test("game: who in the guild runs the addon", function()
 	noErrors(world)
 	T.eq(#main.items, 5)
 	local notice = main.frame.notice:GetText()
-	T.ok(notice:find("5 of 6 guild members have Blood Feud", 1, true), notice)
+	T.ok(notice:find("5 of 6 guild members have Business Meeting", 1, true), notice)
 	T.ok(notice:find("4 online now", 1, true), notice)
 	T.ok(notice:find("1 need to update", 1, true), notice)
 	local text = {}
@@ -1379,8 +1379,8 @@ T.test("game: who in the guild runs the addon", function()
 	T.ok(text:find("Per Hauk v0.2.0", 1, true), text)
 	T.ok(text:find("needs to update", 1, true))
 	T.ok(text:find("newer than yours", 1, true))
-	T.ok(main.frame.status:GetText():find("3 guildmates online with the addon", 1, true), main.frame.status:GetText())
-	T.eq(main.frame.add.label:GetText(), "Refresh")
+	T.ok(main.frame.status:GetText():find("3 guildmates on comms", 1, true), main.frame.status:GetText())
+	T.eq(main.frame.add.label:GetText(), "REFRESH")
 	count = presences()
 	world:Advance(Users.ASK_GAP)
 	local chatFrom = #world.chat + 1
@@ -1392,8 +1392,8 @@ T.test("game: who in the guild runs the addon", function()
 	T.eq(presences(), after, "but not twice in a minute")
 	T.ok(chatHas(world, "Asked a moment ago", chatFrom))
 	chatFrom = #world.chat + 1
-	SlashCmdList.BLOODFEUD("users")
-	T.ok(chatHas(world, "5 of 6 guild members have Blood Feud, 4 online now.", chatFrom))
+	SlashCmdList.BUSINESSMEETING("users")
+	T.ok(chatHas(world, "5 of 6 guild members have Business Meeting, 4 online now.", chatFrom))
 	T.ok(chatHas(world, "Per Hauk  v0.2.0  offline · needs to update", chatFrom))
 	noErrors(world)
 
@@ -1412,12 +1412,12 @@ T.test("game: who in the guild runs the addon", function()
 	world:Advance(1)
 
 	-- The list is remembered across sessions, and follows who is in the guild
-	local saved = BloodFeudDB
+	local saved = BusinessMeetingDB
 	local world2 = Stub.Install()
 	world2.roster = { { "Olaf-Stormborn", 3, true }, { "Kari-Frost", 5, false }, { "Per-Hauk", 5, true } } -- two have left
-	BloodFeudDB = saved
+	BusinessMeetingDB = saved
 	local ns2 = world2:LoadAddon(T.root)
-	world2:Fire("ADDON_LOADED", "BloodFeud")
+	world2:Fire("ADDON_LOADED", "BusinessMeeting")
 	world2:Fire("PLAYER_LOGIN")
 	world2:Advance(3)
 	local sum2, list2 = ns2.Users:Summary()
@@ -1431,16 +1431,16 @@ T.test("game: who in the guild runs the addon", function()
 	world2.epoch = world2.epoch + (ns2.Users.KEEP_DAYS + 1) * 86400
 	T.eq(ns2.Users:Summary().have, 1)
 	T.eq(#world2.errors, 0, table.concat(world2.errors, " | "))
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: an enemy who targets you", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local Codec, Targeting = ns.Codec, ns.Targeting
@@ -1472,18 +1472,18 @@ T.test("game: an enemy who targets you", function()
 	T.eq(Targeting:Count(), 1)
 	T.ok(chatHas(world, "Targeting you:|r |cfffff468Morgash Gorefist|r (60 Orc Rogue) |cffffb347<Hostile Takeover>|r.", chatFrom),
 		world.chat[#world.chat])
-	T.ok(chatHas(world, "Not on the list", chatFrom), "says he is not Kill on Sight")
-	T.ok(BloodFeudAlertBanner:IsShown())
-	T.eq(BloodFeudAlertBanner.title:GetText(), "TARGETING YOU")
+	T.ok(chatHas(world, "Not on the hit list", chatFrom), "says he is not Kill on Sight")
+	T.ok(BusinessMeetingAlertBanner:IsShown())
+	T.eq(BusinessMeetingAlertBanner.title:GetText(), "TARGETING YOU")
 	T.eq(world.lastSound, 8960)
 	local visible = ns.Radar:Visible()
 	T.eq(visible[1].info.key, "morgash-gorefist", "whoever has me targeted is first on the radar")
 	T.ok(visible[1].targeting and not visible[2].targeting)
-	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("ON YOU", 1, true))
-	T.ok(_G.BloodFeudRadarFrame.title:GetText():find("1 on you", 1, true), _G.BloodFeudRadarFrame.title:GetText())
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("ON YOU", 1, true))
+	T.ok(_G.BusinessMeetingRadarFrame.title:GetText():find("1 ON YOU", 1, true), _G.BusinessMeetingRadarFrame.title:GetText())
 	T.ok(ns.Nameplates.aims.nameplate1, "a cross on his nameplate")
 	T.eq(ns.Nameplates.aims.nameplate2, nil)
-	local row = _G.BloodFeudRadarFrame.rows[1]
+	local row = _G.BusinessMeetingRadarFrame.rows[1]
 	row.scripts.OnEnter(row)
 	row.scripts.OnLeave(row)
 	noErrors(world)
@@ -1502,7 +1502,7 @@ T.test("game: an enemy who targets you", function()
 	-- Now he is Kill on Sight, with a history: the next alert says so
 	MORG.targets = nil
 	world:Advance(1)
-	SlashCmdList.BLOODFEUD("add morgash-gorefist Ganked the whole raid")
+	SlashCmdList.BUSINESSMEETING("add morgash-gorefist Ganked the whole raid")
 	local score = Codec.Seal({ k = "c", key = "morgash-gorefist", author = "Kari-Frost", ts = GetServerTime(), kills = 3,
 		deaths = 7 })
 	receive(score, "Kari-Frost")
@@ -1515,13 +1515,13 @@ T.test("game: an enemy who targets you", function()
 	noErrors(world)
 	T.ok(chatHas(world, "Targeting you", chatFrom), "alerts again after the cooldown")
 	T.ok(chatHas(world, "Kill on Sight|r: “Ganked the whole raid”", chatFrom), "says he is Kill on Sight, and why")
-	T.ok(chatHas(world, "Has killed guildmates 8 times, killed by the guild 3 times", chatFrom), "the guild's score against him")
-	T.ok(chatHas(world, "Has killed you 1 times, you them 0 times", chatFrom), "and my own")
+	T.ok(chatHas(world, "Against the guild: kills 8, deaths 3", chatFrom), "the guild's score against him")
+	T.ok(chatHas(world, "Against you: kills 1, deaths 0", chatFrom), "and my own")
 	local about = Targeting:Dossier(ns.Detect.Inspect("nameplate1"))
 	T.eq(about.deaths, 8)
 	T.eq(about.kills, 3)
 	T.eq(about.myDeaths, 1)
-	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("KoS", 1, true), "Kill on Sight still shows next to ON YOU")
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("KOS", 1, true), "Kill on Sight still shows next to ON YOU")
 
 	-- Zulrakka targets me while I have her targeted myself: marked, no alert
 	world.units.target = ZUL
@@ -1576,16 +1576,16 @@ T.test("game: an enemy who targets you", function()
 	T.eq(Targeting:Count(), 0)
 	T.ok(Targeting.stats.checks > 0 and Targeting.stats.hits >= 4)
 	noErrors(world)
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
 end)
 
 T.test("game: an enemy on your pet, and one going into stealth", function()
-	local keep = BloodFeudDB
-	BloodFeudDB = nil
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
 	local world = Stub.Install()
 	world.roster = { { "Olaf-Stormborn", 3 } }
 	local ns = world:LoadAddon(T.root)
-	world:Fire("ADDON_LOADED", "BloodFeud")
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
 	world:Fire("PLAYER_LOGIN")
 	world:Advance(3)
 	local Targeting, Stealth = ns.Targeting, ns.Stealth
@@ -1605,9 +1605,9 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	T.eq(what, "pet")
 	T.eq(Targeting:Count(), 0, "not counted as on me")
 	T.ok(chatHas(world, "Targeting your pet:|r |cfffff468Morgash Gorefist|r", chatFrom))
-	T.eq(BloodFeudAlertBanner.title:GetText(), "TARGETING YOUR PET")
+	T.eq(BusinessMeetingAlertBanner.title:GetText(), "TARGETING YOUR PET")
 	world:Advance(1)
-	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("ON PET", 1, true))
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("ON PET", 1, true))
 	T.ok(ns.Nameplates.aims.nameplate1, "marked on the nameplate too")
 
 	-- ...then for me: that is news again, cooldown or not
@@ -1645,7 +1645,7 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	noErrors(world)
 	T.ok(chatHas(world, "Stealth:|r |cfffff468Morgash Gorefist|r (60 Orc Rogue) used Vanish near you.", chatFrom))
 	T.eq(Stealth.stats.hits, 1, "one alert for one cast")
-	T.eq(BloodFeudAlertBanner.title:GetText(), "STEALTH")
+	T.eq(BusinessMeetingAlertBanner.title:GetText(), "STEALTH")
 	T.eq(world.lastSound, 8959)
 	-- his nameplate goes, the radar remembers him as stealthed
 	world.units.nameplate1 = nil
@@ -1654,8 +1654,8 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	local entry = ns.Radar:Visible()[1]
 	T.ok(entry.stealth, "marked on the radar")
 	T.eq(entry.stealthSpell, "Vanish")
-	T.ok(_G.BloodFeudRadarFrame.rows[1].tag:GetText():find("STEALTH", 1, true))
-	local row = _G.BloodFeudRadarFrame.rows[1]
+	T.ok(_G.BusinessMeetingRadarFrame.rows[1].tag:GetText():find("STEALTH", 1, true))
+	local row = _G.BusinessMeetingRadarFrame.rows[1]
 	row.scripts.OnEnter(row)
 	row.scripts.OnLeave(row)
 	-- seen again: no longer stealthed
@@ -1666,7 +1666,7 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	noErrors(world)
 
 	-- A listed player's stealth alert says they are Kill on Sight
-	SlashCmdList.BLOODFEUD("add morgash-gorefist Opens from stealth")
+	SlashCmdList.BUSINESSMEETING("add morgash-gorefist Opens from stealth")
 	world:Advance(Stealth.COOLDOWN + 1)
 	chatFrom = #world.chat + 1
 	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "nameplate1", "Cast-3", 1784)
@@ -1702,13 +1702,13 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	noErrors(world)
 
 	-- A client in another language: the spells are known by what it calls them
-	BloodFeudDB = nil
+	BusinessMeetingDB = nil
 	local world2 = Stub.Install()
 	world2.locale = "deDE"
 	world2.spells[1784] = "Verstohlenheit"
 	world2.roster = { { "Olaf-Stormborn", 3 } }
 	local ns2 = world2:LoadAddon(T.root)
-	world2:Fire("ADDON_LOADED", "BloodFeud")
+	world2:Fire("ADDON_LOADED", "BusinessMeeting")
 	world2:Fire("PLAYER_LOGIN")
 	world2:Advance(3)
 	world2.units.nameplate1 = MORG
@@ -1717,5 +1717,104 @@ T.test("game: an enemy on your pet, and one going into stealth", function()
 	T.ok(chatHas(world2, "used Verstohlenheit near you"), "found by its local name")
 	T.eq(#world2.errors, 0, table.concat(world2.errors, " | "))
 	T.eq(ns2.Stealth:Spell(133), nil)
-	BloodFeudDB = keep
+	BusinessMeetingDB = keep
+end)
+
+T.test("game: capitals keep colour codes, and frames carry the corner brackets", function()
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	local W = ns.W
+	T.eq(W.Caps("Hit list · |cffd4a94e3 on you|r"), "HIT LIST · |cFFD4A94E3 ON YOU|r")
+	T.eq(W.Caps(nil), nil)
+	ns.MainFrame:Toggle()
+	local f = ns.MainFrame.frame
+	T.eq(#f.brackets, 8, "two bars in each of four corners")
+	T.eq(f.tabs.r.label:GetText(), "HIT LIST")
+	T.ok(f.tabs.r.underline:IsShown(), "the open tab is underlined")
+	T.ok(not f.tabs.b.underline:IsShown(), "the others are not")
+	ns.MainFrame:SetTab("b")
+	T.ok(f.tabs.b.underline:IsShown() and not f.tabs.r.underline:IsShown(), "the underline follows the tab")
+	ns.Alerts:Test()
+	T.eq(#BusinessMeetingAlertBanner.brackets, 4, "the banner has brackets in two corners")
+	T.eq(#world.errors, 0, table.concat(world.errors, " | "))
+end)
+
+T.test("game: the new name takes over Blood Feud's saved data, and a kill is confirmed", function()
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 } }
+	-- What Blood Feud left behind, loaded by the stand-in that ships under its name
+	local old = { schema = 1, settings = { sound = false }, guilds = {},
+		stats = { ["olaf-stormborn"] = { kills = 7, deaths = 2, best = 3 } } }
+	_G.BloodFeudDB, _G.BloodFeudLegacy = old, true
+	world.addons.BloodFeud = true
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	noErrors(world)
+	T.eq(BusinessMeetingDB, old, "the old data is now ours")
+	T.eq(BusinessMeetingDB.importedFrom, "BloodFeud")
+	T.eq(ns.settings.sound, false, "settings came along")
+	T.eq(ns.Progress:Stats().kills, 7, "and the totals")
+	T.ok(chatHas(world, "Blood Feud is now Business Meeting - PvP"), "the player is told once")
+	T.ok(world.disabled.BloodFeud, "the stand-in is switched off for the coming sessions")
+	T.ok(not chatHas(world, "still installed and running"), "the stand-in is not mistaken for the old addon")
+	T.eq(_G.SLASH_BUSINESSMEETING1, "/bm")
+	T.eq(_G.SLASH_BUSINESSMEETING2, "/meeting")
+	T.eq(_G.SLASH_BUSINESSMEETING3, "/feud", "the old command still works")
+	T.eq(ns.Progress:MyRank().title, "Recruit", "seven kills: the first rank")
+
+	-- A killing blow is a confirmed kill, with the way to the next rank
+	world.units.nameplate1 = { name = "Morgash", surname = "Gorefist", guid = "Player-1-0000EEEE", isPlayer = true,
+		enemy = true, faction = "Horde", class = 1, race = 2, level = 60 }
+	world:Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000EEEE")
+	noErrors(world)
+	T.eq(BusinessMeetingAlertBanner.title:GetText(), "KILL CONFIRMED")
+	local detail = BusinessMeetingAlertBanner.detail:GetText()
+	T.ok(detail:find("Confirmed kill 8", 1, true), detail)
+	T.ok(detail:find("2 more to Associate", 1, true), detail)
+	ns.settings.dealBanner = false
+	BusinessMeetingAlertBanner:Hide()
+	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000EEEE")
+	T.ok(not BusinessMeetingAlertBanner:IsShown(), "the banner can be switched off")
+	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000EEEE") -- the tenth
+	T.eq(ns.Progress:MyRank().title, "Associate")
+
+	-- Next session: nothing to take over any more, and nothing said
+	local saved = BusinessMeetingDB
+	local world2 = Stub.Install()
+	world2.roster = { { "Olaf-Stormborn", 3 } }
+	BusinessMeetingDB = saved
+	_G.BloodFeudDB, _G.BloodFeudLegacy = nil, nil
+	local ns2 = world2:LoadAddon(T.root)
+	world2:Fire("ADDON_LOADED", "BusinessMeeting")
+	world2:Fire("PLAYER_LOGIN")
+	world2:Advance(3)
+	T.eq(ns2.Progress:Stats().kills, 10)
+	T.ok(not chatHas(world2, "Blood Feud is now"))
+	T.eq(world2.disabled.BloodFeud, nil)
+
+	-- The old addon itself still installed next to the new one: say so, switch it off
+	BusinessMeetingDB = nil
+	local world3 = Stub.Install()
+	world3.roster = { { "Olaf-Stormborn", 3 } }
+	_G.BloodFeudDB = { schema = 1, settings = {}, guilds = {} }
+	world3.addons.BloodFeud = true
+	world3:LoadAddon(T.root)
+	world3:Fire("ADDON_LOADED", "BusinessMeeting")
+	world3:Fire("PLAYER_LOGIN")
+	world3:Advance(3)
+	T.ok(chatHas(world3, "still installed and running next to this one"))
+	T.ok(world3.disabled.BloodFeud)
+	T.eq(#world3.errors, 0, table.concat(world3.errors, " | "))
+	_G.BloodFeudDB = nil
+	BusinessMeetingDB = keep
 end)

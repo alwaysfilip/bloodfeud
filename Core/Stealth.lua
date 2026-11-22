@@ -10,7 +10,7 @@ local _, ns = ...
 local Util = ns.Util
 
 local Stealth = { names = {}, cache = {}, last = {}, events = {},
-	-- What the client let us see, for /feud probe.
+	-- What the client let us see, for /bm probe.
 	stats = { casts = 0, secret = 0, hits = 0 } }
 ns.Stealth = Stealth
 

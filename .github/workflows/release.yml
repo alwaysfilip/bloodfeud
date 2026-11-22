@@ -32,7 +32,7 @@ jobs:
       - name: Package and release
         uses: BigWigsMods/packager@v2
         with:
-          # The name shown in CurseForge's file list: "BloodFeud-v0.2.1"
+          # The name shown in CurseForge's file list: "BusinessMeeting-v0.4.0"
           # instead of the default "v0.2.1-forever". (The packager turns
           # spaces into underscores, so "Blood Feud v0.2.1" is not possible.)
           # The zip keeps its default name.

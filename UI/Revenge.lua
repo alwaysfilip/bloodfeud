@@ -13,7 +13,7 @@ ns.Revenge = Revenge
 local SOUND = 8960 -- SOUNDKIT.READY_CHECK
 
 function Revenge:Build()
-	local f = W.Panel(UIParent, "BloodFeudRevengeFrame")
+	local f = W.Panel(UIParent, "BusinessMeetingRevengeFrame")
 	self.frame = f
 	f:SetSize(400, 214)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -250)
@@ -21,16 +21,17 @@ function Revenge:Build()
 	f:SetToplevel(true)
 	W.Movable(f)
 	f:Hide()
-	tinsert(UISpecialFrames, "BloodFeudRevengeFrame")
+	tinsert(UISpecialFrames, "BusinessMeetingRevengeFrame")
 
 	f.icon = f:CreateTexture(nil, "ARTWORK")
 	f.icon:SetSize(30, 30)
 	f.icon:SetPoint("TOPLEFT", 16, -14)
 	f.icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
 
-	f.title = W.Label(f, "GameFontNormalLarge", L.REVENGE_TITLE)
+	-- Unfinished business is the one red window
+	W.TintBrackets(f, 0.898, 0.282, 0.302)
+	f.title = W.Heading(f, L.REVENGE_TITLE, 16, { 1, 0.54, 0.50 })
 	f.title:SetPoint("LEFT", f.icon, "RIGHT", 10, 0)
-	f.title:SetTextColor(1, 0.42, 0.36)
 
 	f.text = W.Label(f, "GameFontHighlight")
 	f.text:SetPoint("TOPLEFT", 16, -54)
@@ -44,7 +45,7 @@ function Revenge:Build()
 	f.detail:SetJustifyH("LEFT")
 	f.detail:SetWordWrap(true)
 
-	local reasonLabel = W.Label(f, "GameFontDisableSmall", L.FIELD_REASON)
+	local reasonLabel = W.Caption(f, L.FIELD_REASON)
 	reasonLabel:SetPoint("BOTTOMLEFT", 16, 82)
 	f.reason = W.EditBox(f, 368, 26)
 	f.reason:SetPoint("BOTTOMLEFT", 16, 52)

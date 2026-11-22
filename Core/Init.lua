@@ -2,7 +2,11 @@
 local ADDON, ns = ...
 
 ns.ADDON = ADDON
-ns.TITLE = "Blood Feud"
+ns.TITLE = "Business Meeting"
+ns.FULL_TITLE = "Business Meeting - PvP"
+-- The addon was called Blood Feud until 0.4.0. The two channel names below
+-- are what its copies listen on, so they keep the old name: nobody sees
+-- them, and changing them would cut off everyone who has not updated.
 ns.PREFIX = "BloodFeud" -- state: hellos and updates
 ns.PREFIX_SIGHT = "BloodFeudS" -- sightings, on their own throttle allowance
 ns.L = {}
@@ -24,6 +28,7 @@ local DEFAULTS = {
 	radarAuto = true, -- ...shown only while enemies are around
 	radarSound = false, -- ...with a ping for each new enemy
 	bountyAlerts = true, -- alert when someone with a bounty shows up
+	dealBanner = true, -- a banner for my own killing blows on enemy players
 	targetAlerts = true, -- alert when an enemy player targets me
 	targetSound = true, -- ...with a sound
 	targetPet = true, -- ...also when it is my pet they target
@@ -36,10 +41,19 @@ local DEFAULTS = {
 ---------------------------------------------------------------------------
 
 function ns:InitDB()
-	local db = _G.BloodFeudDB
+	local db = _G.BusinessMeetingDB
 	if type(db) ~= "table" then
-		db = {}
-		_G.BloodFeudDB = db
+		-- First run under the new name: take over what Blood Feud saved, which
+		-- the stand-in addon of that name has had the game load for us.
+		local old = _G.BloodFeudDB
+		if type(old) == "table" then
+			db = old
+			db.importedFrom = "BloodFeud"
+			self.imported = true
+		else
+			db = {}
+		end
+		_G.BusinessMeetingDB = db
 	end
 	db.schema = db.schema or 1
 	db.settings = type(db.settings) == "table" and db.settings or {}
@@ -58,7 +72,7 @@ ns.DEFAULTS = DEFAULTS
 -- Output
 ---------------------------------------------------------------------------
 
-local TAG = "|cffff5a4d[Feud]|r "
+local TAG = "|cffff5a4d[BM]|r "
 
 function ns:Print(text)
 	local frame = _G.DEFAULT_CHAT_FRAME

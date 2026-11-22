@@ -22,12 +22,14 @@ local SHOW_SECONDS = 7
 local banner
 
 local function createBanner()
-	local f = CreateFrame("Frame", "BloodFeudAlertBanner", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "BusinessMeetingAlertBanner", UIParent, "BackdropTemplate")
 	f:SetSize(480, 110)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -150)
 	f:SetFrameStrata("HIGH")
-	f:SetBackdrop({ bgFile = FLAT, edgeFile = FLAT, edgeSize = 2 })
-	f:SetBackdropColor(0.10, 0.05, 0.05, 0.92)
+	-- Near-black, with a dim edge and bright corner brackets in the alert's colour
+	f:SetBackdrop({ bgFile = FLAT, edgeFile = FLAT, edgeSize = 1 })
+	f:SetBackdropColor(0.043, 0.047, 0.059, 0.94)
+	ns.W.Brackets(f, { 1, 1, 1 }, 16, { "TOPLEFT", "BOTTOMRIGHT" })
 	f:EnableMouse(false)
 	f:Hide()
 
@@ -36,7 +38,7 @@ local function createBanner()
 	f.icon:SetPoint("LEFT", 14, 0)
 	f.icon:SetTexture(SKULL)
 
-	f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	f.title = ns.W.CapsFont(f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"), 12)
 	f.title:SetPoint("TOPLEFT", f.icon, "TOPRIGHT", 12, 10)
 	f.title:SetJustifyH("LEFT")
 
@@ -53,9 +55,13 @@ local function createBanner()
 	return f
 end
 
-local function showBanner(title, r, g, b, name, detail)
+--- `icon` is the skull for someone on the list; everything else gets the
+--- addon's own mark.
+local function showBanner(title, r, g, b, name, detail, icon)
 	banner = banner or createBanner()
-	banner:SetBackdropBorderColor(r, g, b, 1)
+	banner:SetBackdropBorderColor(r * 0.45, g * 0.45, b * 0.45, 1)
+	ns.W.TintBrackets(banner, r, g, b)
+	banner.icon:SetTexture(icon or ns.W.ICON)
 	banner.title:SetText(title:upper())
 	banner.title:SetTextColor(r, g, b)
 	banner.name:SetText(name)
@@ -120,7 +126,8 @@ function Alerts:Player(subject, seen, caveat)
 		local bounty = ns.Bounties and ns.Bounties:Line(seen, subject.key)
 		if bounty then detail = detail .. "\n" .. Fmt.Color(Fmt.GOLD, bounty) end
 		if caveat then detail = Fmt.Color(Fmt.AMBER, L.ALERT_NAME_ONLY) .. "\n" .. detail end
-		showBanner(L.ALERT_TITLE, 1, 0.42, 0.36, name .. (line ~= "" and ("  |cffe8e6df" .. line .. "|r") or ""), detail)
+		showBanner(L.ALERT_TITLE, 1, 0.42, 0.36, name .. (line ~= "" and ("  |cffe8e6df" .. line .. "|r") or ""), detail,
+			SKULL)
 	end
 	if ns.settings.chat then
 		ns:Print(L.ALERT_CHAT:format(name, what ~= "" and (" (" .. what .. ")") or "", Alerts.ReasonLine(subject)))
@@ -142,7 +149,7 @@ function Alerts:Guild(guildSubject, seen, bounty)
 		showBanner(L.ALERT_GUILD_TITLE, 1, 0.70, 0.28,
 			name .. "  " .. Fmt.Color(Fmt.AMBER, "<" .. guildSubject.name .. ">"),
 			(what ~= "" and (what .. " · ") or "") .. Alerts.ReasonLine(guildSubject)
-				.. (bounty and ("\n" .. Fmt.Color(Fmt.GOLD, bounty)) or ""))
+				.. (bounty and ("\n" .. Fmt.Color(Fmt.GOLD, bounty)) or ""), SKULL)
 	end
 	if ns.settings.chat then
 		ns:Print(L.ALERT_GUILD_CHAT:format(name, guildSubject.name) .. (bounty and (". " .. bounty) or ""))
@@ -234,6 +241,22 @@ function Alerts:Targeted(seen, about, pet)
 	return true
 end
 
+--- Our own killing blow on an enemy player: a confirmed kill. `st` are the
+--- player's totals, `nextTier` the rank they are working towards.
+function Alerts:Deal(seen, st, nextTier)
+	if not ns.settings.banner then return false end
+	local hex = Fmt.ClassHex(seen.class)
+	local display = Names.Display(seen.name)
+	local name = hex and Fmt.Color(hex, display) or display
+	local what = Fmt.Describe(seen)
+	local parts = { L.DEAL_COUNT:format(st.kills) }
+	if st.streak > 1 then parts[#parts + 1] = L.DEAL_STREAK:format(st.streak) end
+	if nextTier then parts[#parts + 1] = L.DEAL_NEXT:format(nextTier.kills - st.kills, nextTier.title) end
+	showBanner(L.DEAL_TITLE, 0.56, 0.82, 0.56, name .. (what ~= "" and ("  |cffe8e6df" .. what .. "|r") or ""),
+		table.concat(parts, " · "))
+	return true
+end
+
 --- One of our own achievements was just earned.
 function Alerts:Achievement(a)
 	if ns.settings.banner then
@@ -242,9 +265,9 @@ function Alerts:Achievement(a)
 	play(SOUND_ACHIEVEMENT)
 end
 
---- Show the banner with sample data (used by /feud test).
+--- Show the banner with sample data (used by /bm test).
 function Alerts:Test()
 	showBanner(L.ALERT_TITLE, 1, 0.42, 0.36, "|cfffff468Grimtusk Bloodaxe|r  |cffe8e6df60 Orc Rogue|r",
-		"“Ganking lowbies in STV” · " .. L.ALERT_BY:format("Olaf", "3 d ago"))
+		"“Ganking lowbies in STV” · " .. L.ALERT_BY:format("Olaf", "3 d ago"), SKULL)
 	play(SOUND_KOS)
 end

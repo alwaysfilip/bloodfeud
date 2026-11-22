@@ -537,7 +537,7 @@ function Codec.DecodeSighting(text)
 	return s
 end
 
---- Presence: "I run Blood Feud, this version", with an optional "and who
+--- Presence: "I run Business Meeting, this version", with an optional "and who
 --- else does?". It rides on the second prefix and is deliberately not tied
 --- to the state protocol: clients on any version can read it, which is how
 --- the ones that need to update are found. Fields may be added at the end.

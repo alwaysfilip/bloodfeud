@@ -16,7 +16,7 @@ local Util, Names, Codec = ns.Util, ns.Names, ns.Codec
 local L = ns.L
 
 local Feuds = { recent = {}, lastDeath = nil, events = {},
-	-- What the client actually delivered, for /feud probe.
+	-- What the client actually delivered, for /bm probe.
 	stats = { kills = 0, killsSecret = 0, killsMine = 0, killsKnown = 0, deaths = 0, deathsKnown = 0 } }
 ns.Feuds = Feuds
 

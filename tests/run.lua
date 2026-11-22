@@ -15,7 +15,7 @@ function T.load()
 	local ns = {}
 	for _, name in ipairs({ "Util", "Codec", "Store", "Permissions", "Sync" }) do
 		local chunk = assert(loadfile(root .. "/Core/" .. name .. ".lua"))
-		chunk("BloodFeud", ns)
+		chunk("BusinessMeeting", ns)
 	end
 	return ns
 end

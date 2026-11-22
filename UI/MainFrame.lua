@@ -4,7 +4,7 @@
 --   Bounties      prices on enemy heads, and who has collected
 --   Ranks         every guildmate's kills, rank and bounty points
 --   Achievements  what you have earned, and how many guildmates have
---   Addon         which guildmates run Blood Feud, and on which version
+--   Addon         which guildmates run Business Meeting, and on which version
 -- Each tab describes its columns, rows and buttons in TABS below; the window
 -- itself is shared.
 local _, ns = ...
@@ -471,7 +471,7 @@ local function createRow(parent, index)
 end
 
 function Main:Build()
-	local f = W.Panel(UIParent, "BloodFeudMainFrame")
+	local f = W.Panel(UIParent, "BusinessMeetingMainFrame")
 	self.frame = f
 	f:SetSize(WIDTH, HEIGHT)
 	f:SetPoint("CENTER")
@@ -479,17 +479,17 @@ function Main:Build()
 	f:SetToplevel(true)
 	W.Movable(f)
 	f:Hide()
-	tinsert(UISpecialFrames, "BloodFeudMainFrame")
+	tinsert(UISpecialFrames, "BusinessMeetingMainFrame")
 
 	-- Header
 	local icon = f:CreateTexture(nil, "ARTWORK")
-	icon:SetSize(20, 20)
-	icon:SetPoint("TOPLEFT", PAD, -10)
-	icon:SetTexture(W.SKULL)
-	local title = W.Label(f, "GameFontNormalLarge", ns.TITLE)
+	icon:SetSize(22, 22)
+	icon:SetPoint("TOPLEFT", PAD, -9)
+	icon:SetTexture(W.ICON)
+	local title = W.Heading(f, nil, 18, W.C.text)
+	title:SetText(W.Caps(ns.TITLE) .. " |c" .. W.GOLD_HEX .. "// PVP|r")
 	title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
-	title:SetTextColor(0.94, 0.78, 0.37)
-	f.subtitle = W.Label(f, "GameFontDisableSmall")
+	f.subtitle = W.Caption(f)
 	f.subtitle:SetPoint("LEFT", title, "RIGHT", 10, -1)
 	local close = W.Button(f, "X", 26, 22)
 	close:SetPoint("TOPRIGHT", -PAD, -9)
@@ -503,7 +503,7 @@ function Main:Build()
 
 	local rule = f:CreateTexture(nil, "ARTWORK")
 	rule:SetTexture(W.FLAT)
-	rule:SetVertexColor(0.23, 0.20, 0.13, 1)
+	rule:SetVertexColor(W.C.edge[1], W.C.edge[2], W.C.edge[3], 1)
 	rule:SetHeight(1)
 	rule:SetPoint("TOPLEFT", 1, -40)
 	rule:SetPoint("TOPRIGHT", -1, -40)
@@ -512,7 +512,7 @@ function Main:Build()
 	f.tabs = {}
 	local prev
 	for _, key in ipairs(TAB_ORDER) do
-		local b = W.Button(f, TABS[key].label, 88, 26)
+		local b = W.Button(f, TABS[key].label, 88, 26, "tab")
 		if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", PAD, -50) end
 		b:SetScript("OnClick", function() Main:SetTab(key) end)
 		f.tabs[key] = b
@@ -530,7 +530,7 @@ function Main:Build()
 		Main.offset = 0
 		Main:Refresh()
 	end)
-	local searchLabel = W.Label(f, "GameFontDisableSmall", L.SEARCH)
+	local searchLabel = W.Caption(f, L.SEARCH)
 	searchLabel:SetPoint("RIGHT", f.search, "LEFT", -6, 0)
 
 	f.notice = W.Label(f, "GameFontDisableSmall")
@@ -540,7 +540,7 @@ function Main:Build()
 	-- Column headers
 	f.heads = {}
 	for c = 1, MAX_COLS do
-		f.heads[c] = W.Label(f, "GameFontDisableSmall")
+		f.heads[c] = W.Caption(f)
 	end
 
 	-- List
@@ -567,7 +567,7 @@ function Main:Build()
 	slider:SetThumbTexture(W.FLAT)
 	local thumb = slider:GetThumbTexture()
 	thumb:SetSize(10, 36)
-	thumb:SetVertexColor(0.69, 0.55, 0.24, 1)
+	thumb:SetVertexColor(W.C.gold[1], W.C.gold[2], W.C.gold[3], 1)
 	slider:SetMinMaxValues(0, 0)
 	slider:SetValueStep(1)
 	slider:SetValue(0)
@@ -600,7 +600,7 @@ function Main:Build()
 	-- Footer
 	local foot = f:CreateTexture(nil, "ARTWORK")
 	foot:SetTexture(W.FLAT)
-	foot:SetVertexColor(0.23, 0.20, 0.13, 1)
+	foot:SetVertexColor(W.C.edge[1], W.C.edge[2], W.C.edge[3], 1)
 	foot:SetHeight(1)
 	foot:SetPoint("BOTTOMLEFT", 1, 26)
 	foot:SetPoint("BOTTOMRIGHT", -1, 26)
@@ -669,7 +669,7 @@ function Main:Refresh()
 	f.slider:SetShown(last > 0)
 
 	for key, b in pairs(f.tabs) do b:SetSelected(key == self.tab) end
-	f.subtitle:SetText(L.SUBTITLE .. (session and (" · <" .. session.guild .. ">") or ""))
+	f.subtitle:SetText(W.Caps(L.SUBTITLE) .. (session and (" · <" .. session.guild .. ">") or ""))
 	local notice = tab.notice
 	if type(notice) == "function" then notice = session and notice() or "" end
 	f.notice:SetText(notice or "")

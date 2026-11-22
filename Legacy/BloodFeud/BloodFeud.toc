@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: Blood Feud (now Business Meeting - PvP)
+## Notes: Blood Feud is now called Business Meeting - PvP. This stand-in only hands your saved Blood Feud data over to it. It switches itself off afterwards and can be deleted.
+## Author: alwaysfilip
+## Version: @project-version@
+## SavedVariables: BloodFeudDB
+
+Legacy.lua

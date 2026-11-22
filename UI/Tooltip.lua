@@ -1,5 +1,5 @@
 -- Adds the Kill on Sight and bounty lines to the tooltip of an enemy player,
--- and a guildmate's Blood Feud rank to theirs.
+-- and a guildmate's Business Meeting rank to theirs.
 local _, ns = ...
 
 local Util, Fmt, Names = ns.Util, ns.Fmt, ns.Names
@@ -45,7 +45,7 @@ local function addBounty(tooltip, info, key)
 	if line then tooltip:AddLine(line, 0.94, 0.78, 0.37) end
 end
 
---- A guildmate: their Blood Feud rank, if they run the addon.
+--- A guildmate: their Business Meeting rank, if they run the addon.
 local function addGuildmate(tooltip, session, unit)
 	if not (_G.UnitIsInMyGuild and _G.UnitIsInMyGuild(unit)) then return end
 	local name = Names.OfUnit(unit)

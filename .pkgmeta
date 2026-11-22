@@ -1,4 +1,9 @@
-package-as: BloodFeud
+package-as: BusinessMeeting
+
+# The stand-in under the addon's old name, which hands over saved data (see
+# Legacy/BloodFeud/Legacy.lua). It ships as a folder of its own.
+move-folders:
+  BusinessMeeting/Legacy/BloodFeud: BloodFeud
 
 externals:
   Libs/LibStub:

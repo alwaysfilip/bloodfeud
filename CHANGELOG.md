@@ -1,5 +1,12 @@
 # Business Meeting - PvP
 
+## 0.4.1
+
+- Published again now that the project page carries the new name, logo and
+  screenshots. If you already have 0.4.0, nothing looks or works differently.
+- A game client that lacks the narrow font used for titles, tabs and buttons
+  now keeps the normal font instead of showing an error.
+
 ## 0.4.0
 
 - New name: Blood Feud is now **Business Meeting - PvP**. Your saved data

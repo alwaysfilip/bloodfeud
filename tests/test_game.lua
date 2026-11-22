@@ -1731,6 +1731,9 @@ T.test("game: capitals keep colour codes, and frames carry the corner brackets",
 	local W = ns.W
 	T.eq(W.Caps("Hit list · |cffd4a94e3 on you|r"), "HIT LIST · |cFFD4A94E3 ON YOU|r")
 	T.eq(W.Caps(nil), nil)
+	-- A client without the narrow font keeps the font it had
+	local plain = { SetFont = function() error("invalid font") end }
+	T.eq(W.CapsFont(plain, 12), plain, "a missing font file does not stop the window being built")
 	ns.MainFrame:Toggle()
 	local f = ns.MainFrame.frame
 	T.eq(#f.brackets, 8, "two bars in each of four corners")

@@ -46,9 +46,11 @@ function W.Caps(text)
 	return (text:upper():gsub("|C", "|c"):gsub("|R", "|r"))
 end
 
---- Switch a font string to the narrow font used for capitals.
+--- Switch a font string to the narrow font used for capitals. SetFont raises
+--- an error for a font file the client does not have; such a client keeps the
+--- font the string was created with.
 function W.CapsFont(fs, size)
-	fs:SetFont(W.CAPS_FONT, size or 12, "")
+	pcall(fs.SetFont, fs, W.CAPS_FONT, size or 12, "")
 	return fs
 end
 

@@ -577,7 +577,7 @@ end
 -- Guildmates' totals and the rank ladder
 ---------------------------------------------------------------------------
 
-local MEMBER_FIELDS = { "kills", "deaths", "best", "points", "ach" }
+local MEMBER_FIELDS = { "kills", "deaths", "best", "points", "ach", "bgKills", "bgDeaths", "duelWins", "duelLosses" }
 
 --- Write `author`'s own totals. t: { kills, deaths, best, points, ach }.
 --- Returns the new record, or nil when nothing changed.

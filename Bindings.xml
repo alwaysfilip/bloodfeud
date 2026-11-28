@@ -1,0 +1,23 @@
+<Bindings>
+	<Binding name="BUSINESSMEETING_CD_1" header="BUSINESSMEETING" category="ADDONS">
+		BusinessMeeting_CooldownSlot(1)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_2" category="ADDONS">
+		BusinessMeeting_CooldownSlot(2)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_3" category="ADDONS">
+		BusinessMeeting_CooldownSlot(3)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_4" category="ADDONS">
+		BusinessMeeting_CooldownSlot(4)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_5" category="ADDONS">
+		BusinessMeeting_CooldownSlot(5)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_6" category="ADDONS">
+		BusinessMeeting_CooldownSlot(6)
+	</Binding>
+	<Binding name="BUSINESSMEETING_CD_RESET" category="ADDONS">
+		BusinessMeeting_CooldownReset()
+	</Binding>
+</Bindings>

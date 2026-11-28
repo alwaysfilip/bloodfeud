@@ -67,8 +67,10 @@ end
 
 local SETTINGS = { banner = true, sound = true, chat = true, nameplates = true, guildAlerts = true, sightSend = true,
 	sightShow = true, revenge = true, dealBanner = true, bountyAlerts = true, targetAlerts = true, targetSound = true, targetPet = true,
-	stealthAlerts = true, radar = true,
-	radarAuto = true, radarSound = true, debug = true }
+	stealthAlerts = true, radar = true, radarAuto = true, radarSound = true,
+	bgTargets = true, bgTargetsAllies = true, bgTimers = true,
+	cdTracker = true, cdDuels = true, cdWorld = true, cdBG = true,
+	capWarnings = true, hudFade = true, debug = true }
 -- Numeric settings: name -> { min, max }
 local NUMBERS = { revengeCount = { 2, 10 }, revengeWindow = { 5, 120 } }
 
@@ -186,9 +188,14 @@ local function rankCommand(rest)
 	end
 	local st = ns.Progress:Stats()
 	if not st then return end
+	local total = ns.Progress.TotalKills(st)
 	local rank, nextTier = ns.Progress:MyRank()
-	ns:Print(L.MY_RANK:format(rank and rank.title or L.UNRANKED, st.kills))
-	if nextTier then ns:Print(L.NEXT_RANK:format(nextTier.title, nextTier.kills - st.kills)) end
+	if (st.bgKills or 0) > 0 then
+		ns:Print(L.MY_RANK_SPLIT:format(rank and rank.title or L.UNRANKED, total, st.kills, st.bgKills))
+	else
+		ns:Print(L.MY_RANK:format(rank and rank.title or L.UNRANKED, total))
+	end
+	if nextTier then ns:Print(L.NEXT_RANK:format(nextTier.title, nextTier.kills - total)) end
 	ns.MainFrame:Show("m")
 end
 
@@ -209,7 +216,7 @@ local function slash(input)
 			if name then
 				ns:AddPlayer(Names.Canon(name, true), reason)
 			else
-				ns:Print(L.MSG_NO_TARGET)
+				ns:AddTarget("")
 			end
 		end
 	elseif command == "remove" or command == "rm" then
@@ -225,6 +232,48 @@ local function slash(input)
 		showScore(rest)
 	elseif command == "radar" then
 		ns.RadarUI:Toggle()
+	elseif command == "bgtargets" or command == "bgt" then
+		if rest:lower() == "test" then
+			ns.BGTargets:SetDemo(not ns.BGTargets.demo)
+		else
+			ns.BGTargets:Toggle()
+		end
+	elseif command == "bgtimers" or command == "timers" then
+		if rest:lower() == "test" then
+			ns.BGTimers:SetDemo(not ns.BGTimers.demo)
+		else
+			ns.BGTimersUI:Toggle()
+		end
+	elseif command == "cd" or command == "cooldowns" then
+		local sub = rest:lower()
+		if sub == "test" then
+			ns.Cooldowns:SetDemo(not ns.Cooldowns.demo)
+		elseif sub == "reset" then
+			ns.Cooldowns:ResetAll()
+		else
+			ns.CooldownsUI:Toggle()
+		end
+	elseif command == "ledger" or command == "warledger" then
+		ns.MainFrame:Show("l")
+	elseif command == "hotspots" then
+		local list = ns.Hotspots and ns.Hotspots:List() or {}
+		if #list == 0 then
+			ns:Print(L.HISTORY_EMPTY_HOTSPOTS)
+		else
+			ns:Print(L.HOTSPOTS_SUMMARY:format(#list))
+			for i = 1, math.min(#list, 6) do
+				local z = list[i]
+				local coords = (z.lastX and z.lastY) and ns.Fmt.Coords(z.lastX, z.lastY) or ""
+				ns:Print(("   %s%s  (%d events: %d sightings, %d kills, %d deaths) · %s"):format(
+					z.zone or L.UNKNOWN, coords, z.total or 0, z.sightings or 0, z.kills or 0, z.deaths or 0,
+					ns.Fmt.Ago(z.lastAt)))
+			end
+		end
+		ns.MainFrame.historyMode = "hotspots"
+		ns.MainFrame.selected = nil
+		ns.MainFrame.offset = 0
+		ns.MainFrame:Show("h")
+		ns.MainFrame:Refresh()
 	elseif command == "bounty" then
 		postBounty(rest)
 	elseif command == "bounties" then
@@ -235,6 +284,8 @@ local function slash(input)
 		if ns.Debts:Remind() == 0 then ns:Print(L.DEBT_NONE) end
 	elseif command == "rank" or command == "ranks" then
 		rankCommand(rest)
+	elseif command == "history" or command == "stats" then
+		ns.MainFrame:Show("h")
 	elseif command == "ach" or command == "achievements" then
 		ns.MainFrame:Show("a")
 	elseif command == "log" then
@@ -254,12 +305,22 @@ local function slash(input)
 			ns.settings[key] = (value == "on" or value == "1" or value == "true")
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
 			if key:find("^radar") then ns.RadarUI:Update() end
+			if key:find("^bgTargets") and ns.BGTargets then ns.BGTargets:Update() end
+			if key == "bgTimers" and ns.BGTimersUI then ns.BGTimersUI:Update() end
+			if key:find("^cd") and ns.CooldownsUI then ns.Cooldowns:OnTargetChanged(); ns.CooldownsUI:Update() end
+			if key == "hudFade" then
+				if ns.RadarUI and ns.RadarUI.ApplyAlpha then ns.RadarUI:ApplyAlpha() end
+				if ns.BGTargets and ns.BGTargets.ApplyAlpha then ns.BGTargets:ApplyAlpha() end
+				if ns.BGTimersUI and ns.BGTimersUI.ApplyAlpha then ns.BGTimersUI:ApplyAlpha() end
+				if ns.CooldownsUI and ns.CooldownsUI.ApplyAlpha then ns.CooldownsUI:ApplyAlpha() end
+			end
 		elseif range and number then
 			ns.settings[key] = math.min(math.max(math.floor(number), range[1]), range[2])
 			ns:Print(key .. " = " .. tostring(ns.settings[key]))
 		else
 			ns:Print("/bm set <banner|sound|chat|nameplates|guildAlerts|sightSend|sightShow|revenge|dealBanner|bountyAlerts|"
-				.. "targetAlerts|targetSound|targetPet|stealthAlerts|radar|radarAuto|radarSound|debug> on|off")
+				.. "targetAlerts|targetSound|targetPet|stealthAlerts|radar|radarAuto|radarSound|bgTargets|bgTargetsAllies|"
+				.. "bgTimers|cdTracker|cdDuels|cdWorld|cdBG|capWarnings|hudFade|debug> on|off")
 			ns:Print("/bm set revengeCount <2-10> · /bm set revengeWindow <5-120 minutes>")
 		end
 	else
@@ -271,9 +332,9 @@ end
 -- Start-up
 ---------------------------------------------------------------------------
 
-local MODULES = { "Roster", "Comm", "Users", "Detect", "Sightings", "Feuds", "Progress", "Debts", "Radar", "Targeting", "Stealth",
-	"MainFrame", "RadarUI",
-	"Tooltip", "UnitMenu", "Nameplates", "Minimap", "Options" }
+local MODULES = { "Roster", "Comm", "Users", "Detect", "Sightings", "Feuds", "Progress", "Battleground", "BGTimers",
+	"Duels", "Cooldowns", "Ledger", "Debts", "Radar", "Targeting", "Stealth", "MainFrame", "RadarUI",
+	"BGTargets", "BGTimersUI", "CooldownsUI", "Tooltip", "UnitMenu", "Nameplates", "Minimap", "Options" }
 
 --- The addon was Blood Feud until 0.4.0. Whatever is still installed under
 --- that name has done its job once its saved data is taken over: switch it

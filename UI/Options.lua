@@ -24,6 +24,15 @@ local CHECKS = {
 	{ "radar", L.OPT_RADAR, L.OPT_RADAR_TIP },
 	{ "radarAuto", L.OPT_RADAR_AUTO, L.OPT_RADAR_AUTO_TIP },
 	{ "radarSound", L.OPT_RADAR_SOUND, L.OPT_RADAR_SOUND_TIP },
+	{ "bgTargets", L.OPT_BG_TARGETS, L.OPT_BG_TARGETS_TIP },
+	{ "bgTargetsAllies", L.OPT_BG_TARGETS_ALLIES, L.OPT_BG_TARGETS_ALLIES_TIP },
+	{ "bgTimers", L.OPT_BG_TIMERS, L.OPT_BG_TIMERS_TIP },
+	{ "cdTracker", L.OPT_CD_TRACKER, L.OPT_CD_TRACKER_TIP },
+	{ "cdDuels", L.OPT_CD_DUELS, L.OPT_CD_DUELS_TIP },
+	{ "cdWorld", L.OPT_CD_WORLD, L.OPT_CD_WORLD_TIP },
+	{ "cdBG", L.OPT_CD_BG, L.OPT_CD_BG_TIP },
+	{ "capWarnings", L.OPT_CAP_WARNINGS, L.OPT_CAP_WARNINGS_TIP },
+	{ "hudFade", L.OPT_HUD_FADE, L.OPT_HUD_FADE_TIP },
 }
 
 local SLIDERS = {
@@ -53,6 +62,23 @@ function Options:Init()
 			end)
 		elseif (key == "radar" or key == "radarAuto") and setting and setting.SetValueChangedCallback then
 			setting:SetValueChangedCallback(function() ns.RadarUI:Update() end)
+		elseif (key == "bgTargets" or key == "bgTargetsAllies") and setting and setting.SetValueChangedCallback then
+			setting:SetValueChangedCallback(function() if ns.BGTargets then ns.BGTargets:Update() end end)
+		elseif key == "bgTimers" and setting and setting.SetValueChangedCallback then
+			setting:SetValueChangedCallback(function() if ns.BGTimersUI then ns.BGTimersUI:Update() end end)
+		elseif (key == "cdTracker" or key == "cdDuels" or key == "cdWorld" or key == "cdBG")
+			and setting and setting.SetValueChangedCallback then
+			setting:SetValueChangedCallback(function()
+				if ns.Cooldowns then ns.Cooldowns:OnTargetChanged() end
+				if ns.CooldownsUI then ns.CooldownsUI:Update() end
+			end)
+		elseif key == "hudFade" and setting and setting.SetValueChangedCallback then
+			setting:SetValueChangedCallback(function()
+				if ns.RadarUI and ns.RadarUI.ApplyAlpha then ns.RadarUI:ApplyAlpha() end
+				if ns.BGTargets and ns.BGTargets.ApplyAlpha then ns.BGTargets:ApplyAlpha() end
+				if ns.BGTimersUI and ns.BGTimersUI.ApplyAlpha then ns.BGTimersUI:ApplyAlpha() end
+				if ns.CooldownsUI and ns.CooldownsUI.ApplyAlpha then ns.CooldownsUI:ApplyAlpha() end
+			end)
 		end
 	end
 	if settings.CreateSlider and settings.CreateSliderOptions then

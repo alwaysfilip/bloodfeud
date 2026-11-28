@@ -485,13 +485,14 @@ end
 --- working towards.
 function Alerts:Deal(seen, st, nextTier, tier)
 	if not ns.settings.banner then return false end
-	local parts = { L.DEAL_COUNT:format(st.kills) }
+	local total = ns.Progress and ns.Progress.TotalKills(st) or st.kills
+	local parts = { L.DEAL_COUNT:format(total) }
 	if st.streak > 1 then parts[#parts + 1] = L.DEAL_STREAK:format(st.streak) end
-	if nextTier then parts[#parts + 1] = L.DEAL_NEXT:format(nextTier.kills - st.kills, nextTier.title) end
+	if nextTier then parts[#parts + 1] = L.DEAL_NEXT:format(nextTier.kills - total, nextTier.title) end
 	showBanner({ title = L.DEAL_TITLE, color = GREEN, icon = "check", who = person(seen),
 		tag = st.streak > 1 and L.DEAL_STREAK:format(st.streak) or nil,
 		wide = { kind = "rank", title = tier and tier.title or L.UNRANKED, next = nextTier and nextTier.title,
-			have = st.kills, need = nextTier and nextTier.kills },
+			have = total, need = nextTier and nextTier.kills },
 		line = table.concat(parts, " · ") })
 	return true
 end

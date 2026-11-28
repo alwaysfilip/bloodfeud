@@ -47,7 +47,9 @@ end
 
 --- A guildmate: their Business Meeting rank, if they run the addon.
 local function addGuildmate(tooltip, session, unit)
-	if not (_G.UnitIsInMyGuild and _G.UnitIsInMyGuild(unit)) then return end
+	if not _G.UnitIsInMyGuild then return end
+	local ok, inGuild = pcall(_G.UnitIsInMyGuild, unit)
+	if not (ok and not Util.IsSecret(inGuild) and inGuild) then return end
 	local name = Names.OfUnit(unit)
 	if not name then return end
 	local key = Names.Key(name)
@@ -58,8 +60,14 @@ local function addGuildmate(tooltip, session, unit)
 	end
 	local rec = session.store:Member(key)
 	if not rec then return end
-	local rank = ns.Progress.RankFor(rec.kills, ns.Progress.Ladder(session.store))
-	tooltip:AddLine(L.TIP_GUILDMATE:format(rank and rank.title or L.UNRANKED, rec.kills), 0.94, 0.78, 0.37)
+	local total = ns.Progress.TotalKills(rec)
+	local rank = ns.Progress.RankFor(total, ns.Progress.Ladder(session.store))
+	if (rec.bgKills or 0) > 0 then
+		tooltip:AddLine(L.TIP_GUILDMATE_SPLIT:format(rank and rank.title or L.UNRANKED, total, rec.kills or 0, rec.bgKills),
+			0.94, 0.78, 0.37)
+	else
+		tooltip:AddLine(L.TIP_GUILDMATE:format(rank and rank.title or L.UNRANKED, total), 0.94, 0.78, 0.37)
+	end
 end
 
 local function onUnit(tooltip)

@@ -126,6 +126,11 @@ function Roster.Ready()
 	return Roster.ready
 end
 
+--- Is the character with this folded name in our guild?
+function Roster.IsMember(key)
+	return Roster.members[key] ~= nil
+end
+
 --- Is the member with this folded name an officer?
 function Roster.IsOfficer(key)
 	local known = Roster.officers[key]

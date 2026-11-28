@@ -432,8 +432,10 @@ function Debts:Init()
 	events.TRADE_ACCEPT_UPDATE = ns:On("TRADE_ACCEPT_UPDATE", function(mine, theirs) Debts:OnTradeAccept(mine, theirs) end)
 	events.TRADE_CLOSED = ns:On("TRADE_CLOSED", function() Debts:OnTradeClosed() end)
 	events.UI_INFO_MESSAGE = ns:On("UI_INFO_MESSAGE", function(a, b)
+		if not Debts.trade then return end
 		local done = _G.ERR_TRADE_COMPLETE
-		if done and (a == done or b == done) and Debts.trade then Debts:TradeDone() end
+		local sa, sb = plain(a, "string"), plain(b, "string")
+		if done and (sa == done or sb == done) then Debts:TradeDone() end
 	end)
 
 	ns:Listen("LIST_CHANGED", function(_, rec, old)

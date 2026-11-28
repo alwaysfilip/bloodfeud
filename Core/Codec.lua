@@ -10,7 +10,7 @@
 --                                                 facts about a listed player
 --   c  key ~ author ~ ts ~ kills ~ deaths          author's score against a
 --                                                 listed player
---   m  author ~ ts ~ kills ~ deaths ~ best ~ points ~ achievements
+--   m  author ~ ts ~ kills ~ deaths ~ best ~ points ~ achievements ~ bgKills ~ bgDeaths ~ duelWins ~ duelLosses
 --                                                 a guildmate's own totals
 --   t  n ~ ts ~ mby ~ kills ~ title               rank tier n (officers)
 --   b  name ~ author ~ ts ~ mby ~ at ~ scope ~ points ~ gold ~ reward
@@ -43,7 +43,7 @@ local concat = table.concat
 local Codec = {}
 ns.Codec = Codec
 
-Codec.PROTO = 3 -- 2: members, rank tiers, bounties, claims (0.2.0); 3: gold bounties, debt marks (0.3.0)
+Codec.PROTO = 4 -- 2: totals/bounties (0.2.0); 3: gold/debts (0.3.0); 4: BG kills & duels (0.6.0)
 Codec.BUCKETS = 64
 Codec.DIGEST_MOD = 262144 -- 18 bits = 3 base-64 digits
 Codec.MAX_FRAME = 255
@@ -198,8 +198,9 @@ function Codec.EncodeRecord(rec)
 		return concat({ "c" .. esc(rec.key), esc(rec.author), Enc(rec.ts), Enc(rec.kills), Enc(rec.deaths) }, "~")
 	end
 	if k == "m" then
-		return concat({ "m" .. esc(rec.author), Enc(rec.ts), Enc(rec.kills), Enc(rec.deaths), Enc(rec.best),
-			Enc(rec.points), Enc(rec.ach) }, "~")
+		return concat({ "m" .. esc(rec.author), Enc(rec.ts), Enc(rec.kills or 0), Enc(rec.deaths or 0), Enc(rec.best or 0),
+			Enc(rec.points or 0), Enc(rec.ach or 0), Enc(rec.bgKills or 0), Enc(rec.bgDeaths or 0),
+			Enc(rec.duelWins or 0), Enc(rec.duelLosses or 0) }, "~")
 	end
 	if k == "t" then
 		return concat({ "t" .. Enc(rec.n), Enc(rec.ts), esc(rec.mby), Enc(rec.kills), esc(rec.title) }, "~")
@@ -290,15 +291,17 @@ function Codec.DecodeRecord(text)
 	end
 
 	if kind == "m" then
-		if n ~= 7 then return nil end
+		if n ~= 11 then return nil end
 		local rec = { k = "m", author = parts[1], ts = Dec(parts[2]), kills = Dec(parts[3]), deaths = Dec(parts[4]),
-			best = Dec(parts[5]), points = Dec(parts[6]), ach = Dec(parts[7]) }
+			best = Dec(parts[5]), points = Dec(parts[6]), ach = Dec(parts[7]), bgKills = Dec(parts[8]),
+			bgDeaths = Dec(parts[9]), duelWins = Dec(parts[10]), duelLosses = Dec(parts[11]) }
 		if not rec.ts or rec.ts <= 0 or not rec.kills or not rec.deaths or not rec.best or not rec.points
-			or not rec.ach then
+			or not rec.ach or not rec.bgKills or not rec.bgDeaths or not rec.duelWins or not rec.duelLosses then
 			return nil
 		end
 		if rec.kills > Codec.MAX_SCORE or rec.deaths > Codec.MAX_SCORE or rec.best > Codec.MAX_SCORE
-			or rec.points > Codec.MAX_SCORE * 100 then
+			or rec.points > Codec.MAX_SCORE * 100 or rec.bgKills > Codec.MAX_SCORE or rec.bgDeaths > Codec.MAX_SCORE
+			or rec.duelWins > Codec.MAX_SCORE or rec.duelLosses > Codec.MAX_SCORE then
 			return nil
 		end
 		if not cleanName(rec.author, Codec.MAX_NAME) then return nil end

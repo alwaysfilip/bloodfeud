@@ -11,17 +11,21 @@ local function at(field, n)
 	return function(st) return (st[field] or 0) >= n end
 end
 
+local function totalKills(n)
+	return function(st) return ((st.kills or 0) + (st.bgKills or 0)) >= n end
+end
+
 local function derived(field, n)
 	return function(_, d) return (d[field] or 0) >= n end
 end
 
 ns.Achievements = {
-	--[[1]] { name = "First Blood", desc = "Land a killing blow on an enemy player.", test = at("kills", 1) },
-	--[[2]] { name = "Blooded", desc = "10 killing blows on enemy players.", test = at("kills", 10) },
-	--[[3]] { name = "Hired Gun", desc = "50 killing blows on enemy players.", test = at("kills", 50) },
-	--[[4]] { name = "Centurion", desc = "100 killing blows on enemy players.", test = at("kills", 100) },
-	--[[5]] { name = "Professional", desc = "500 killing blows on enemy players.", test = at("kills", 500) },
-	--[[6]] { name = "Living Legend", desc = "1000 killing blows on enemy players.", test = at("kills", 1000) },
+	--[[1]] { name = "First Blood", desc = "Land a killing blow on an enemy player.", test = totalKills(1) },
+	--[[2]] { name = "Blooded", desc = "10 killing blows on enemy players.", test = totalKills(10) },
+	--[[3]] { name = "Hired Gun", desc = "50 killing blows on enemy players.", test = totalKills(50) },
+	--[[4]] { name = "Centurion", desc = "100 killing blows on enemy players.", test = totalKills(100) },
+	--[[5]] { name = "Professional", desc = "500 killing blows on enemy players.", test = totalKills(500) },
+	--[[6]] { name = "Living Legend", desc = "1000 killing blows on enemy players.", test = totalKills(1000) },
 	--[[7]] { name = "Clean Run", desc = "3 kills without dying in between.", test = at("best", 3) },
 	--[[8]] { name = "Untouchable", desc = "5 kills without dying in between.", test = at("best", 5) },
 	--[[9]] { name = "Not a Scratch", desc = "10 kills without dying in between.", test = at("best", 10) },
@@ -50,4 +54,16 @@ ns.Achievements = {
 	--[[30]] { name = "Occupational Hazard", desc = "Die to enemy players 50 times.", test = at("deaths", 50) },
 	--[[31]] { name = "It's Personal", desc = "Add someone to the hit list from the unfinished business prompt.",
 		test = at("revengeAdds", 1) },
+	--[[32]] { name = "Battleground Regular", desc = "Win your first battleground.", test = at("bgWins", 1) },
+	--[[33]] { name = "War Veteran", desc = "Win 25 battlegrounds.", test = at("bgWins", 25) },
+	--[[34]] { name = "Field Marshal", desc = "Land 100 killing blows in battlegrounds.", test = at("bgKills", 100) },
+	--[[35]] { name = "Slaughterhouse", desc = "Land 500 killing blows in battlegrounds.", test = at("bgKills", 500) },
+	--[[36]] { name = "Dominating Performance", desc = "Land 10 or more killing blows in a single battleground.",
+		test = at("bgBestKB", 10) },
+	--[[37]] { name = "Warsong Champion", desc = "Win 10 matches in Warsong Gulch.", test = at("wsgWins", 10) },
+	--[[38]] { name = "Basin Tactician", desc = "Win 10 matches in Arathi Basin.", test = at("abWins", 10) },
+	--[[39]] { name = "Island Raider", desc = "Win 10 matches in Darkspear Islands.", test = at("dsWins", 10) },
+	--[[40]] { name = "Honor Bound", desc = "Win your first 1v1 duel.", test = at("duelWins", 1) },
+	--[[41]] { name = "Duelist", desc = "Win 25 duels.", test = at("duelWins", 25) },
+	--[[42]] { name = "Undefeated", desc = "Win 5 duels in a row.", test = at("duelBest", 5) },
 }

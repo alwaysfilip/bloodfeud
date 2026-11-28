@@ -50,6 +50,10 @@ function Radar:Saw(info, unit)
 	if fresh then
 		entry.first = now
 		self.newAt = now
+		if ns.Hotspots and ns.Fmt then
+			local map, x, y = ns.Fmt.PlayerPosition()
+			if map then ns.Hotspots:Record("radar", map, x, y, info.name) end
+		end
 		ns:Fire("RADAR_NEW", entry)
 	end
 	ns:Fire("RADAR_CHANGED")

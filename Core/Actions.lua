@@ -46,13 +46,20 @@ function ns:AddPlayer(name, reason, info)
 		self:Print(L.MSG_SELF)
 		return nil
 	end
+	if (info and info.faction and not self.Detect.IsOpposingFaction(info.faction))
+		or ((not info or not info.faction) and self.Detect.IsAlly(key)) then
+		self:Print(L.MSG_ALLY:format(Names.Display(name)))
+		return nil
+	end
 	local now = GetServerTime()
 	local fresh = not self:MyReport("r", key)
 	local rec = s.store:Report("r", name, reason or "", s.me, nil, now)
 	if fresh and ns.Progress then ns.Progress:Bump("added") end
 	if info then
+		local guild = info.guild
+		if guild == nil and info.guildChecked then guild = false end
 		s.store:SetFacts(key, { guid = info.guid, cur = info.name, class = info.class, race = info.race,
-			level = info.level, guild = info.guild }, s.me, now)
+			level = info.level, guild = guild }, s.me, now)
 	end
 	self:Print(L.MSG_YOU_ADDED:format(Names.Display(name)))
 	return rec
@@ -60,11 +67,18 @@ end
 
 --- Add the current target, which must be an enemy player.
 function ns:AddTarget(reason)
-	if not session() then return nil end
+	local s = session()
+	if not s then return nil end
 	local ok, info = pcall(self.Detect.Inspect, "target")
 	if not ok or not info then
-		local shown = _G.UnitExists("target") and Names.OfUnit("target")
-		self:Print(shown and L.MSG_NOT_ENEMY:format(Names.Display(shown)) or L.MSG_NO_TARGET)
+		local shown = self.Detect.TargetName()
+		if shown and Names.Key(shown) == s.meKey then
+			self:Print(L.MSG_SELF)
+		elseif shown and self.Detect.IsAllyUnit("target") then
+			self:Print(L.MSG_ALLY:format(Names.Display(shown)))
+		else
+			self:Print(shown and L.MSG_NOT_ENEMY:format(Names.Display(shown)) or L.MSG_NO_TARGET)
+		end
 		return nil
 	end
 	return self:AddPlayer(info.name, reason, info)
@@ -80,6 +94,10 @@ function ns:AddGuild(guildName, reason)
 	end
 	guildName = Util.Clean(guildName or "", Codec.MAX_GUILD)
 	if guildName == "" then return nil end
+	if self.Detect.IsAllyGuild(guildName) then
+		self:Print(L.MSG_ALLY_GUILD:format(guildName))
+		return nil
+	end
 	local rec = s.store:Report("g", guildName, reason or "", s.me, nil, GetServerTime())
 	self:Print(L.MSG_YOU_ADDED:format("<" .. guildName .. ">"))
 	return rec

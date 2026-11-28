@@ -65,17 +65,43 @@ end
 --- What we know about the name currently in the field.
 function Dialog:UpdateDetail()
 	local f, opts = self.frame, self.opts or {}
-	if self.mode ~= "player" then
+	if self.mode == "edit" then
 		f.detail:SetText("")
+		f.ok:SetEnabled(true)
+		return
+	end
+	if self.mode == "guild" then
+		local typed = ns.Util.Clean(f.name:GetText() or "", Codec.MAX_GUILD)
+		if typed ~= "" and ns.Detect.IsAllyGuild(typed) then
+			f.detail:SetText(Fmt.Color(Fmt.RED, L.MSG_ALLY_GUILD:format(typed)))
+			f.ok:SetEnabled(false)
+		else
+			f.detail:SetText("")
+			f.ok:SetEnabled(true)
+		end
 		return
 	end
 	local typed = Names.Canon(f.name:GetText() or "", true)
 	local info = opts.info
-	if info and typed and Names.Key(typed) == info.key then
+	local confirmedEnemy = info and typed and Names.Key(typed) == info.key
+		and info.faction and ns.Detect.IsOpposingFaction(info.faction)
+	if typed and ns.session and Names.Key(typed) == ns.session.meKey then
+		f.detail:SetText(Fmt.Color(Fmt.RED, L.MSG_SELF))
+		f.ok:SetEnabled(false)
+	elseif confirmedEnemy then
 		local what = Fmt.Describe(info)
 		f.detail:SetText(what .. (info.guild and ((what ~= "" and " · " or "") .. "<" .. info.guild .. ">") or ""))
+		f.ok:SetEnabled(true)
+	elseif typed and ns.Detect.IsAlly(typed) then
+		f.detail:SetText(Fmt.Color(Fmt.RED, L.MSG_ALLY:format(Names.Display(typed))))
+		f.ok:SetEnabled(false)
+	elseif info and typed and Names.Key(typed) == info.key then
+		local what = Fmt.Describe(info)
+		f.detail:SetText(what .. (info.guild and ((what ~= "" and " · " or "") .. "<" .. info.guild .. ">") or ""))
+		f.ok:SetEnabled(true)
 	else
 		f.detail:SetText(L.NAME_HINT)
+		f.ok:SetEnabled(true)
 	end
 end
 

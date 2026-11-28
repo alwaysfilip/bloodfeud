@@ -232,3 +232,30 @@ T.test("presence: round trip, forward compatible, garbage refused", function()
 	T.eq(Codec.DecodePresence(nil), nil)
 	T.eq(Codec.DecodeSighting(Codec.EncodePresence("v0.3.1", 3)), nil, "older clients read it as no sighting")
 end)
+
+T.test("record: PROTO 4 member totals (OW, BG, Duels, 42 medals) round trip and validation", function()
+	T.eq(Codec.PROTO, 4)
+	local ach = 2 ^ 31 + 2 ^ 39 + 2 ^ 41 -- medals 32, 40, 42
+	local rec = Codec.Seal({
+		k = "m", author = "Olaf-Stormborn", ts = NOW,
+		kills = 45, deaths = 12, best = 7, points = 320, ach = ach,
+		bgKills = 180, bgDeaths = 64, duelWins = 19, duelLosses = 4,
+	})
+	T.eq(rec.id, "m:olaf-stormborn")
+	T.ok(#rec.wire <= Codec.MAX_RECORD)
+	local back = T.ok(Codec.DecodeRecord(rec.wire), "PROTO 4 m record decodes")
+	T.eq(back.kills, 45)
+	T.eq(back.deaths, 12)
+	T.eq(back.best, 7)
+	T.eq(back.points, 320)
+	T.eq(back.ach, ach)
+	T.eq(back.bgKills, 180)
+	T.eq(back.bgDeaths, 64)
+	T.eq(back.duelWins, 19)
+	T.eq(back.duelLosses, 4)
+	T.eq(back.hash, rec.hash)
+	-- Legacy 7-field v3 m-record is rejected under PROTO 4
+	T.eq(Codec.DecodeRecord("mOlaf~1~1~1~1~1~1"), nil, "old 7-field m-record rejected")
+	-- Extra 12th field rejected
+	T.eq(Codec.DecodeRecord(rec.wire .. "~1"), nil, "12-field m-record rejected")
+end)

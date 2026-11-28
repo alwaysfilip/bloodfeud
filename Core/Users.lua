@@ -22,7 +22,7 @@ Users.RECENT = 1200 -- heard this recently counts as online when the roster cann
 Users.KEEP_DAYS = 60 -- forget members not heard from for this long
 
 -- Versions from before presence existed, by the protocol their sync speaks.
-local OLD_VERSIONS = { [1] = "v0.1.0", [2] = "v0.2.0", [3] = "v0.3.0" }
+local OLD_VERSIONS = { [1] = "v0.1.0", [2] = "v0.2.0", [3] = "v0.5.0" }
 
 local function between(range)
 	return range[1] + (range[2] - range[1]) * math.random()

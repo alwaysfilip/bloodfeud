@@ -20,6 +20,7 @@ function Sightings:Report(key, info)
 	local now = GetServerTime()
 	local map, x, y = Fmt.PlayerPosition()
 	session.store:SetSeen(key, { at = now, map = map, x = x, y = y, by = session.me })
+	if ns.Hotspots and map then ns.Hotspots:Record("sighting", map, x, y, info.name) end
 
 	if not ns.settings.sightSend then return end
 	local last = self.recent[key]
@@ -45,6 +46,7 @@ function Sightings:OnFrame(sender, text)
 	if Names.Key(sender) == session.meKey then return end -- our own report, echoed back
 
 	local newer = session.store:SetSeen(s.key, { at = s.t, map = s.map, x = s.x, y = s.y, by = sender })
+	if ns.Hotspots and s.map then ns.Hotspots:Record("sighting", s.map, s.x, s.y, s.name) end
 	if not newer or not ns.settings.sightShow then return end
 	local subject = session.store:Player(s.key)
 	if not subject then return end

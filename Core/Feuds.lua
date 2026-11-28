@@ -226,6 +226,10 @@ function Feuds:OnKill(attackerGUID, targetGUID)
 	stats.killsKnown = stats.killsKnown + 1
 	local key, e, listed = self:Count(info, "k", GetServerTime())
 	if not key then return end
+	if ns.Hotspots and ns.Fmt then
+		local map, x, y = ns.Fmt.PlayerPosition()
+		if map then ns.Hotspots:Record("kill", map, x, y, info.name) end
+	end
 	if ns.Progress then ns.Progress:OnKill(info, key, listed, e) end
 	if listed and ns.settings.chat then
 		ns:Print(L.MSG_KILL:format(Names.Display(info.name), scoreText(key) or ""))
@@ -275,6 +279,10 @@ function Feuds:OnDeath()
 	local now = GetServerTime()
 	local key, e, listed = self:Count(info, "d", now)
 	if not key then return end
+	if ns.Hotspots and ns.Fmt then
+		local map, x, y = ns.Fmt.PlayerPosition()
+		if map then ns.Hotspots:Record("death", map, x, y, info.name) end
+	end
 	if ns.Progress then ns.Progress:OnDeath() end
 	if listed and ns.settings.chat then
 		ns:Print(L.MSG_KILLED_BY:format(Names.Display(info.name), scoreText(key) or ""))

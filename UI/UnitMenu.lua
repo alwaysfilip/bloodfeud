@@ -22,6 +22,7 @@ local function build(_, root, context)
 	elseif context.which == "ENEMY_PLAYER" and type(context.name) == "string" then
 		local surname = type(context.surname) == "string" and context.surname or nil
 		name = Names.Canon(surname and (context.name .. "-" .. surname) or context.name)
+		if name and (Names.Key(name) == session.meKey or ns.Detect.IsAlly(name)) then return end
 	end
 	if not name then return end
 

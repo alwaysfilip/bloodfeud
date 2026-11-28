@@ -15,7 +15,16 @@ local function onClick(button)
 		if ok and info then
 			ns.AddDialog:Open("player", { info = info })
 		else
-			ns:Print(L.MSG_NO_TARGET)
+			local shown = ns.Detect.TargetName()
+			if shown and ns.session and ns.Names.Key(shown) == ns.session.meKey then
+				ns:Print(L.MSG_SELF)
+			elseif shown and ns.Detect.IsAllyUnit("target") then
+				ns:Print(L.MSG_ALLY:format(ns.Names.Display(shown)))
+			elseif shown then
+				ns:Print(L.MSG_NOT_ENEMY:format(ns.Names.Display(shown)))
+			else
+				ns:Print(L.MSG_NO_TARGET)
+			end
 		end
 	else
 		ns.MainFrame:Toggle()

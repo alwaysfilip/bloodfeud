@@ -18,8 +18,13 @@ end
 
 T.test("progress: new record kinds round-trip and reject bad input", function()
 	local s = Store.New({}, NOW)
-	local m = roundTrip(s:SetMember("Kari-Frost", { kills = 120, deaths = 33, best = 7, points = 40, ach = 2 ^ 40 + 5 }, NOW))
+	local m = roundTrip(s:SetMember("Kari-Frost", { kills = 120, deaths = 33, best = 7, points = 40, ach = 2 ^ 40 + 5,
+		bgKills = 45, bgDeaths = 12, duelWins = 9, duelLosses = 4 }, NOW))
 	T.eq(m.kills, 120)
+	T.eq(m.bgKills, 45)
+	T.eq(m.bgDeaths, 12)
+	T.eq(m.duelWins, 9)
+	T.eq(m.duelLosses, 4)
 	T.eq(m.ach, 2 ^ 40 + 5)
 	T.eq(m.id, "m:kari-frost")
 

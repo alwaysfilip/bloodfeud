@@ -270,6 +270,46 @@ local function collect(add)
 	end
 
 	add("")
+	add("== battlegrounds, pvp currencies & duels ==")
+	local pvp = _G.C_PvP
+	add("C_PvP.GetScoreInfo: " .. type(pvp and pvp.GetScoreInfo) .. "  GetBattlefieldScore: " .. type(_G.GetBattlefieldScore)
+		.. "  GetNumBattlefieldScores: " .. type(_G.GetNumBattlefieldScores))
+	add("GetBattlefieldWinner: " .. type(_G.GetBattlefieldWinner) .. "  GetAreaSpiritHealerTime: "
+		.. type(_G.GetAreaSpiritHealerTime))
+	if _G.GetPVPLifetimeStats then
+		local okL, hk, dk, hr = try(_G.GetPVPLifetimeStats)
+		add(("GetPVPLifetimeStats: hk=%s dk=%s rank=%s"):format(show(okL and hk), show(okL and dk), show(okL and hr)))
+	end
+	if _G.UnitHonorLevel then
+		add("UnitHonorLevel: " .. show(select(2, try(_G.UnitHonorLevel, "player")))
+			.. "  UnitHonor: " .. show(select(2, try(_G.UnitHonor, "player"))))
+	end
+	local cur = _G.C_CurrencyInfo
+	if cur and cur.GetCurrencyListSize and cur.GetCurrencyListInfo then
+		local okC, n = try(cur.GetCurrencyListSize)
+		add("C_CurrencyInfo list size: " .. show(okC and n))
+		if okC and type(n) == "number" then
+			local found = 0
+			for i = 1, math.min(n, 120) do
+				local okI, ci = try(cur.GetCurrencyListInfo, i)
+				if okI and type(ci) == "table" and not ci.isHeader and type(ci.name) == "string" then
+					local lo = ci.name:lower()
+					if lo:find("honor", 1, true) or lo:find("mark", 1, true) or lo:find("pvp", 1, true)
+						or lo:find("rank", 1, true) or lo:find("legacy", 1, true) or lo:find("darkspear", 1, true)
+						or lo:find("warsong", 1, true) or lo:find("arathi", 1, true) or lo:find("alterac", 1, true) then
+						found = found + 1
+						add(("  currency: %s qty=%s max=%s"):format(ci.name, show(ci.quantity), show(ci.maxQuantity)))
+					end
+				end
+			end
+			if found == 0 then add("  (no PvP currencies matched in list)") end
+		end
+	end
+	add("C_UIWidgetManager: " .. type(_G.C_UIWidgetManager) .. "  C_Reputation: " .. type(_G.C_Reputation))
+	add("DUEL_WINNER_KNOCKOUT: " .. show(_G.DUEL_WINNER_KNOCKOUT))
+	add("DUEL_WINNER_RETREAT: " .. show(_G.DUEL_WINNER_RETREAT))
+
+	add("")
 	add("== interface APIs ==")
 	add("Menu.ModifyMenu: " .. type(_G.Menu and _G.Menu.ModifyMenu))
 	add("TooltipDataProcessor.AddTooltipPostCall: " .. type(_G.TooltipDataProcessor and _G.TooltipDataProcessor.AddTooltipPostCall))

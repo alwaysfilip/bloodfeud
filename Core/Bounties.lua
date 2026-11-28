@@ -109,13 +109,22 @@ function ns:PostBounty(scope, name, points, reward, gold)
 			self:Print(L.MSG_NO_TARGET)
 			return nil
 		end
-		if Names.Key(name) == s.meKey then
+		local key = Names.Key(name)
+		if key == s.meKey then
 			self:Print(L.MSG_SELF)
+			return nil
+		end
+		if self.Detect.IsAlly(key) then
+			self:Print(L.MSG_ALLY:format(Names.Display(name)))
 			return nil
 		end
 	else
 		name = Util.Clean(name or "", Codec.MAX_GUILD)
 		if name == "" then return nil end
+		if self.Detect.IsAllyGuild(name) then
+			self:Print(L.MSG_ALLY_GUILD:format(name))
+			return nil
+		end
 	end
 	local now = GetServerTime()
 	-- Whoever has not paid for the last one does not get to post the next.

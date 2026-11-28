@@ -1,5 +1,47 @@
 # Business Meeting - PvP
 
+## 0.6.0
+
+- **Only opposing-faction enemies on the hit list.** Players of your own
+  faction (and your own or allied guilds) can no longer be added to the hit
+  list or targeted with a contract, whether targeted or typed by name.
+- **Open World, Battleground and Total kills.** Your killing blows and deaths
+  in Forever's battlegrounds (Warsong Gulch, Arathi Basin, Alterac Valley and
+  Darkspear Islands) are now tracked from the live scoreboard without double
+  counting across `/reload`. The Ranks tab and guildmate tooltips show Open
+  World, BG and Total kills separately, with Total kills driving guild ranks
+  and kill medals.
+- **Battleground Targets & Flag Carrier HUD.** A combat-safe click-to-target
+  list of enemies (and optionally allies) inside battlegrounds, with dedicated
+  Enemy and Friendly Flag Carrier rows in Warsong Gulch and Darkspear Islands,
+  live health when visible, and Hit List / Contract / Hostile Guild badges
+  (`/bm bgtargets`, `/bm bgtargets test`).
+- **Battleground Timers & Score Projection.** Countdown bars for starting
+  gates, base captures (AB, AV and Darkspear Islands), dropped/respawning
+  flags and the 30-second Spirit Healer resurrection wave, plus projected win
+  time and bases needed in Arathi Basin and Darkspear Islands (`/bm bgtimers`,
+  `/bm bgtimers test`).
+- **Hybrid Enemy Cooldown Tracker.** A compact 6-slot bar showing only your
+  current opponent's key class cooldowns and PvP Trinket, active in 1v1 duels
+  and open-world PvP by default (and optionally in BGs). Starts automatically
+  when casts are readable, or on click / keybind (`Bindings.xml`: Slot 1–6 and
+  Reset), with a gold ready-flash when a cooldown comes back up (`/bm cd`).
+- **PvP History, Duels & World PvP Hotspots.** Saves up to 200 full
+  battleground scoreboards (double-click any match to inspect) and 200 1v1
+  duels with win/loss, winrate, honor/hour and per-map / per-class / per-rival
+  stats, plus a rolling 60-minute World PvP Hotspots view from your guild's
+  sightings, kills and radar (`/bm history`, `/bm hotspots`).
+- **War Ledger & Vendor Wishlist.** Tracks Forever PvP Rank / Rank Points,
+  Honor against the 25,000 cap, Battleground Marks against the 30 cap (with
+  chat warnings near cap), PvP Legacy Points and BG reputations. Visiting a
+  PvP vendor catalogs its items so you can build a wishlist showing missing
+  Honor, Marks, Gold and estimated BGs remaining (`/bm ledger`).
+- **11 new medals (42 total)** for battleground wins, BG killing blows,
+  per-map wins (WSG, AB, Darkspear Islands) and 1v1 duels, plus optional HUD
+  auto-fade while idle.
+- **Sync protocol v4.** Guildmates now share Open World kills, BG kills and
+  Duel W–L in Ranks. Clients on 0.5.0 are told to update in the Comms tab.
+
 ## 0.5.0
 
 - Alerts are now built like the game's own unit frames instead of lines of

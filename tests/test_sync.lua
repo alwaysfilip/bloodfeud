@@ -357,3 +357,23 @@ T.test("sync: a 1000-entry list reaches a fresh install", function()
 	T.ok(sim.frames.U <= 700, "update frames: " .. sim.frames.U)
 	T.ok(sim.frames.H <= 3, "hellos: " .. sim.frames.H)
 end)
+
+T.test("sync: PROTO 4 member BG kills and duel records converge across the guild", function()
+	local sim = Sim.New(ns, 16)
+	local c = guild(sim, NAMES)
+	sim:Run(40)
+	c[1].store:SetMember("Olaf", {
+		kills = 12, deaths = 4, best = 5, points = 40, ach = 2 ^ 31 + 2 ^ 39,
+		bgKills = 38, bgDeaths = 11, duelWins = 9, duelLosses = 2,
+	}, c[1].env.time())
+	sim:Run(15)
+	T.ok(sim:Converged(), "PROTO 4 member totals converged")
+	for _, client in ipairs(c) do
+		local m = T.ok(client.store:Member("olaf"), client.name .. " holds Olaf's member record")
+		T.eq(m.kills, 12)
+		T.eq(m.bgKills, 38)
+		T.eq(m.bgDeaths, 11)
+		T.eq(m.duelWins, 9)
+		T.eq(m.duelLosses, 2)
+	end
+end)

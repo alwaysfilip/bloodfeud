@@ -20,8 +20,8 @@ WidgetMT.__index = function(_, key)
 end
 
 local function widget(world, kind, name)
-	local o = setmetatable({ kind = kind, widgetName = name, scripts = {}, shown = true, text = "", enabled = true,
-		value = 0, min = 0, max = 0, lines = {} }, WidgetMT)
+	local o = setmetatable({ kind = kind, widgetName = name, scripts = {}, attrs = {}, shown = true, text = "",
+		enabled = true, value = 0, min = 0, max = 0, lines = {}, alpha = 1 }, WidgetMT)
 	world.widgets[#world.widgets + 1] = o
 	return o
 end
@@ -70,14 +70,26 @@ function Methods:AddLine(text) self.lines[#self.lines + 1] = text end
 function Methods:AddMessage(text) self.world.chat[#self.world.chat + 1] = text end
 function Methods:GetUnit() return "name", self.world.tooltipUnit end
 function Methods:SetOwner() self.lines = {} end
+function Methods:SetAttribute(k, v)
+	if self.world and self.world.inCombat then error("ADDON_ACTION_BLOCKED: SetAttribute in combat") end
+	self.attrs[k] = v
+end
+function Methods:GetAttribute(k) return self.attrs[k] end
+function Methods:SetAlpha(a) self.alpha = a end
+function Methods:GetAlpha() return self.alpha end
 function Methods:Click(...) if self.scripts.OnClick then self.scripts.OnClick(self, ...) end end
+function Methods:DoubleClick(...) if self.scripts.OnDoubleClick then self.scripts.OnDoubleClick(self, ...) end end
 
 --- Install the imitation as globals and return the world that controls it.
 function Stub.Install()
 	local world = {
 		now = 1000, epoch = 1795252375, timers = {}, events = {}, widgets = {}, chat = {}, sent = {}, errors = {},
-		units = {}, menus = {}, roster = {}, inGuild = true, locked = false, guild = "Northwind Trading",
-		me = { first = "Olaf", surname = "Stormborn" }, myRank = 3, loopback = true,
+		units = {}, menus = {}, roster = {}, friends = {}, bnetFriends = {}, inGuild = true, locked = false,
+		inCombat = false, guild = "Northwind Trading", me = { first = "Olaf", surname = "Stormborn" },
+		myFaction = "Alliance", myRank = 3, loopback = true,
+		bgScores = {}, bgWinner = nil, bgRunTimeMs = 0, instanceName = nil, spiritHealerTime = 0,
+		widgetsData = {}, pois = {}, containerItems = {}, currencies = {}, reputations = {}, merchant = {}, bags = {},
+		pvpStats = { hk = 0, dk = 0, highestRank = 0, honorLevel = 0, honor = 0 },
 	}
 	local G = _G
 
@@ -145,7 +157,7 @@ function Stub.Install()
 	local function unitOf(token)
 		if token == "player" then
 			return { name = world.me.first, surname = world.me.surname, guid = "Player-1-00000001", isPlayer = true,
-				faction = "Alliance", class = 1, race = 1, level = 60 }
+				faction = world.myFaction, class = 1, race = 1, level = 60 }
 		end
 		local base = type(token) == "string" and token:match("^(.+)target$")
 		if base then
@@ -173,7 +185,29 @@ function Stub.Install()
 	G.UnitExists = function(token) return unitOf(token) ~= nil end
 	G.UnitIsPlayer = function(token) local u = unitOf(token); return u and u.isPlayer or false end
 	G.UnitIsEnemy = function(_, token) local u = unitOf(token); return u and u.enemy or false end
+	G.UnitIsFriend = function(_, token)
+		local u = unitOf(token)
+		return u ~= nil and not u.enemy and u.faction == world.myFaction
+	end
 	G.UnitCanAttack = G.UnitIsEnemy
+	G.C_FriendList = {
+		GetNumFriends = function() return #world.friends end,
+		GetFriendInfoByIndex = function(i)
+			local f = world.friends[i]
+			return type(f) == "string" and { name = f } or f
+		end,
+	}
+	G.C_BattleNet = {
+		GetNumFriends = function() return #world.bnetFriends end,
+		GetFriendNumGameAccounts = function(i)
+			local f = world.bnetFriends[i]
+			return f and #f or 0
+		end,
+		GetFriendGameAccountInfo = function(i, j)
+			local f = world.bnetFriends[i]
+			return f and f[j] or nil
+		end,
+	}
 	G.UnitFactionGroup = function(token) return field(token, "faction") end
 	G.UnitName = function(token) return field(token, "name"), field(token, "surname") end
 	G.UnitNameUnmodified = G.UnitName
@@ -182,7 +216,81 @@ function Stub.Install()
 	G.UnitClass = function(token) return "Class", "ROGUE", field(token, "class") end
 	G.UnitRace = function(token) return "Race", "Orc", field(token, "race") end
 	G.UnitLevel = function(token) return field(token, "level") end
+	G.UnitHealth = function(token) return field(token, "hp") or 100 end
+	G.UnitHealthMax = function(token) return field(token, "maxHp") or 100 end
 	G.UnitIsInMyGuild = function(token) local u = unitOf(token); return u and u.guildmate or false end
+	G.InCombatLockdown = function() return world.inCombat and true or false end
+	G.GetInstanceInfo = function()
+		return world.instanceName or "Azeroth", world.instance or "none"
+	end
+	G.GetNumBattlefieldScores = function() return #world.bgScores end
+	G.RequestBattlefieldScoreData = function() world.scoreRequests = (world.scoreRequests or 0) + 1 end
+	G.GetBattlefieldWinner = function() return world.bgWinner end
+	G.GetBattlefieldInstanceRunTime = function() return world.bgRunTimeMs or 0 end
+	G.GetAreaSpiritHealerTime = function() return world.spiritHealerTime or 0 end
+	G.C_PvP = {
+		GetScoreInfo = function(i) return world.bgScores[i] end,
+	}
+	G.C_UIWidgetManager = {
+		GetAllWidgetsBySetID = function(setID) return world.widgetsData[setID] or {} end,
+		GetTopCenterWidgetSetID = function() return world.topWidgetSetID or 1 end,
+		GetDoubleStatusBarWidgetVisualizationInfo = function(id) return world.widgetsData["bar:" .. id] end,
+		GetIconAndTextWidgetVisualizationInfo = function(id) return world.widgetsData["icon:" .. id] end,
+		GetTextWithStateWidgetVisualizationInfo = function(id) return world.widgetsData["text:" .. id] end,
+	}
+	G.GetPVPLifetimeStats = function()
+		return world.pvpStats.hk, world.pvpStats.dk, world.pvpStats.highestRank
+	end
+	G.UnitHonorLevel = function() return world.pvpStats.honorLevel or 0 end
+	G.UnitHonor = function() return world.pvpStats.honor or 0 end
+	G.C_CurrencyInfo = {
+		GetCurrencyListSize = function() return #world.currencies end,
+		GetCurrencyListInfo = function(i) return world.currencies[i] end,
+		GetCurrencyInfo = function(id)
+			for _, c in ipairs(world.currencies) do
+				if c.currencyID == id then return c end
+			end
+			return nil
+		end,
+	}
+	G.C_Reputation = {
+		GetNumFactions = function() return #world.reputations end,
+		GetFactionDataByIndex = function(i) return world.reputations[i] end,
+	}
+	G.C_Item = {
+		GetItemCount = function(itemID) return world.bags[itemID] or 0 end,
+	}
+	G.C_Container = {
+		GetContainerNumSlots = function(bag) return bag == 0 and #world.containerItems or 0 end,
+		GetContainerItemInfo = function(bag, slot) return bag == 0 and world.containerItems[slot] or nil end,
+	}
+	G.C_AreaPoiInfo = {
+		GetAreaPOIForMap = function()
+			local ids = {}
+			for id in pairs(world.pois) do ids[#ids + 1] = id end
+			return ids
+		end,
+		GetAreaPOIInfo = function(_, id) return world.pois[id] end,
+	}
+	G.GetMerchantNumItems = function() return #world.merchant end
+	G.GetMerchantItemInfo = function(i)
+		local m = world.merchant[i]
+		if not m then return nil end
+		return m.name, m.texture or "Interface\\Icons\\INV_Misc_QuestionMark", m.price or 0, 1, -1, false, m.extendedCost
+	end
+	G.GetMerchantItemID = function(i) return world.merchant[i] and world.merchant[i].itemID end
+	G.GetMerchantItemLink = function(i) return world.merchant[i] and world.merchant[i].link end
+	G.GetMerchantItemCostInfo = function(i)
+		local m = world.merchant[i]
+		return m and m.costs and #m.costs or 0
+	end
+	G.GetMerchantItemCostItem = function(i, j)
+		local c = world.merchant[i] and world.merchant[i].costs and world.merchant[i].costs[j]
+		if not c then return nil end
+		return c.texture, c.value, c.link, c.name
+	end
+	G.DUEL_WINNER_KNOCKOUT = "%1$s has defeated %2$s in a duel"
+	G.DUEL_WINNER_RETREAT = "%2$s has fled from %1$s in a duel"
 	G.UnitTokenFromGUID = function(guid)
 		for token, u in pairs(world.units) do
 			if u.guid == guid then return token end
@@ -302,7 +410,10 @@ function Stub.Install()
 	G.GetLocale = function() return world.locale or "enUS" end
 	-- world.spells: spell id -> the name this client has for it
 	world.spells = { [1784] = "Stealth", [1856] = "Vanish", [5215] = "Prowl", [58984] = "Shadowmeld", [133] = "Fireball" }
-	G.C_Spell = { GetSpellName = function(id) return world.spells[id] end }
+	G.C_Spell = {
+		GetSpellName = function(id) return world.spells[id] end,
+		GetSpellTexture = function(id) return world.spells[id] and ("Interface\\Icons\\Spell_" .. tostring(id)) or nil end,
+	}
 	G.GetNormalizedRealmName = function() return nil end
 	G.RegionalUniqueNamesEnabled = function() return true end
 	G.WOW_PROJECT_ID = 18

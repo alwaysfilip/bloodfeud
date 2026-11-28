@@ -41,7 +41,7 @@ T.test("game: a full session runs without Lua errors", function()
 	T.ok(not ns.Roster.AmOfficer())
 	T.ok(SlashCmdList.BUSINESSMEETING, "slash command registered")
 	T.ok(world.iconRegistered, "minimap button registered")
-	T.eq(world.checkboxes, 18, "options page built")
+	T.eq(world.checkboxes, 27, "options page built")
 	T.eq(world.sliders, 2, "revenge sliders built")
 
 	-- Names in their three shapes
@@ -1865,5 +1865,591 @@ T.test("game: the new name takes over Blood Feud's saved data, and a kill is con
 	T.ok(world3.disabled.BloodFeud)
 	T.eq(#world3.errors, 0, table.concat(world3.errors, " | "))
 	_G.BloodFeudDB = nil
+	BusinessMeetingDB = keep
+end)
+
+T.test("game: allies and allied guilds cannot be added to the hit list or contracts", function()
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 0 }, { "Kari-Frost", 5 } }
+	world.myRank = 0 -- officer, so guild-add rules are tested too
+	world.friends = { "Freya-Shield" }
+	world.bnetFriends = {
+		{ { clientProgram = "WoW", characterName = "Torvald-Oak", factionName = "Alliance" } },
+		{ { clientProgram = "WoW", characterName = "Grommash-Iron", factionName = "Horde" } },
+	}
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	noErrors(world)
+	local store = ns.session.store
+
+	-- 1. Same-faction player in a duel / FFA arena (UnitIsEnemy == true, same faction)
+	local DUEL_ALLY = { name = "Soren", surname = "Brightblade", guid = "Player-1-00001111", isPlayer = true,
+		enemy = true, faction = "Alliance", class = 2, race = 1, level = 60, guild = "Silver Hand" }
+	world.units.target = DUEL_ALLY
+	T.eq(ns.Detect.Inspect("target"), nil, "same-faction duel target is never inspected as an enemy")
+	world:Fire("PLAYER_TARGET_CHANGED")
+	T.eq(#ns.Radar:Visible(), 0, "ally in duel does not show on radar")
+
+	local chatFrom = #world.chat + 1
+	SlashCmdList.BUSINESSMEETING("add")
+	T.ok(not store:IsListed("soren-brightblade"), "bare /bm add refuses same-faction target")
+	T.ok(chatHas(world, "is on your faction", chatFrom))
+
+	chatFrom = #world.chat + 1
+	T.eq(ns:AddTarget("duel"), nil)
+	T.ok(chatHas(world, "is on your faction", chatFrom))
+
+	-- Shift-click minimap on an ally prints the ally message, does not open AddDialog
+	world.shift = true
+	chatFrom = #world.chat + 1
+	world.broker.OnClick(nil, "LeftButton")
+	world.shift = false
+	T.ok(not (_G.BusinessMeetingAddDialog and _G.BusinessMeetingAddDialog:IsShown()))
+	T.ok(chatHas(world, "is on your faction", chatFrom))
+
+	-- Right-click menu offers nothing on a dueling ally
+	local buttons = {}
+	local root = {
+		CreateDivider = function() end,
+		CreateTitle = function() end,
+		CreateButton = function(_, text, fn) buttons[#buttons + 1] = { text = text, fn = fn } end,
+	}
+	world.menus.MENU_UNIT_TARGET(nil, root, { unit = "target", which = "ENEMY_PLAYER" })
+	T.eq(#buttons, 0, "no right-click menu entries on same-faction duel target")
+
+	-- MainFrame button says "Add player", not "Add target", for an ally
+	ns.MainFrame:Show("r")
+	ns.MainFrame:UpdateActions()
+	T.eq(ns.MainFrame.frame.add.label:GetText(), "ADD PLAYER")
+
+	-- 2. Neutral player is also rejected
+	world.units.target = { name = "Nori", surname = "Wandering", guid = "Player-1-00001112", isPlayer = true,
+		enemy = false, faction = "Neutral", class = 10, race = 24, level = 10 }
+	T.eq(ns.Detect.Inspect("target"), nil, "neutral player is not opposing faction")
+	T.eq(ns:AddTarget("neutral"), nil)
+	T.ok(not store:IsListed("nori-wandering"))
+	world.units.target = nil
+
+	-- 3. Guildmate typed by name, in slash command, dialog, bounty and unitless menu
+	chatFrom = #world.chat + 1
+	SlashCmdList.BUSINESSMEETING("add Kari-Frost stole my herbs")
+	T.ok(not store:IsListed("kari-frost"), "guildmate refused by /bm add")
+	T.ok(chatHas(world, "Kari Frost is on your faction", chatFrom))
+	SlashCmdList.BUSINESSMEETING("bounty Kari-Frost 20")
+	T.ok(not store:HasBounty("p", "kari-frost"), "bounty on guildmate refused")
+	world.menus.MENU_UNIT_ENEMY_PLAYER(nil, root, { which = "ENEMY_PLAYER", name = "Kari", surname = "Frost" })
+	T.eq(#buttons, 0, "unitless enemy menu refuses known ally")
+
+	-- Dialog disables OK and shows a warning when typing a guildmate or self
+	ns.AddDialog:Open("player", {})
+	ns.AddDialog.frame.name:SetText("Kari Frost")
+	T.ok(not ns.AddDialog.frame.ok:IsEnabled(), "add button disabled for known ally")
+	T.ok(ns.AddDialog.frame.detail:GetText():find("on your faction", 1, true))
+	ns.AddDialog:Submit()
+	T.ok(not store:IsListed("kari-frost"))
+	T.ok(BusinessMeetingAddDialog:IsShown(), "dialog stays open on refusal")
+	ns.AddDialog.frame.name:SetText("Olaf Stormborn")
+	T.ok(not ns.AddDialog.frame.ok:IsEnabled(), "add button disabled for self")
+	ns.AddDialog.frame.name:SetText("Grimtusk Bloodaxe")
+	T.ok(ns.AddDialog.frame.ok:IsEnabled(), "add button re-enabled for an enemy name")
+	BusinessMeetingAddDialog:Hide()
+
+	-- 4. Party member (live and remembered after leaving group)
+	world.units.party1 = { name = "Eirik", surname = "Healer", guid = "Player-1-00001113", isPlayer = true,
+		faction = "Alliance", class = 5, race = 1, level = 60 }
+	world:Fire("GROUP_ROSTER_UPDATE")
+	SlashCmdList.BUSINESSMEETING("add Eirik-Healer")
+	T.ok(not store:IsListed("eirik-healer"), "party member refused while in group")
+	world.units.party1 = nil
+	world:Fire("GROUP_ROSTER_UPDATE")
+	SlashCmdList.BUSINESSMEETING("add Eirik-Healer")
+	T.ok(not store:IsListed("eirik-healer"), "party member still refused after leaving group")
+
+	-- 5. Friends list and Battle.net friends (same faction blocked, opposing faction allowed)
+	SlashCmdList.BUSINESSMEETING("add Freya-Shield")
+	T.ok(not store:IsListed("freya-shield"), "character friend refused")
+	SlashCmdList.BUSINESSMEETING("add Torvald-Oak")
+	T.ok(not store:IsListed("torvald-oak"), "same-faction bnet friend refused")
+	SlashCmdList.BUSINESSMEETING("add Grommash-Iron friendly rivalry")
+	T.ok(store:IsListed("grommash-iron"), "opposing-faction bnet friend allowed")
+
+	-- 6. Previously seen ally (Soren) and their guild (<Silver Hand>) remembered after leaving view
+	SlashCmdList.BUSINESSMEETING("add Soren-Brightblade")
+	T.ok(not store:IsListed("soren-brightblade"), "previously seen ally still refused")
+	SlashCmdList.BUSINESSMEETING("guild Northwind Trading = own guild")
+	T.ok(not store:IsGuildListed("Northwind Trading"), "own guild refused")
+	SlashCmdList.BUSINESSMEETING("guild Silver Hand = ally guild")
+	T.ok(not store:IsGuildListed("Silver Hand"), "seen allied guild refused")
+	SlashCmdList.BUSINESSMEETING("bounty <Northwind Trading> 10")
+	T.ok(not store:HasBounty("g", "northwind trading"), "contract on own guild refused")
+	SlashCmdList.BUSINESSMEETING("bounty <Silver Hand> 10")
+	T.ok(not store:HasBounty("g", "silver hand"), "contract on seen allied guild refused")
+	ns.AddDialog:Open("guild", {})
+	ns.AddDialog.frame.name:SetText("Silver Hand")
+	T.ok(not ns.AddDialog.frame.ok:IsEnabled(), "guild dialog disables add for allied guild")
+	ns.AddDialog.frame.name:SetText("Hostile Takeover")
+	T.ok(ns.AddDialog.frame.ok:IsEnabled(), "guild dialog enables add for enemy guild")
+	BusinessMeetingAddDialog:Hide()
+
+	-- 7. Opposing-faction enemy in a sanctuary (UnitIsEnemy == false) is still allowed
+	world.units.target = { name = "Zulrakka", surname = "Venomtongue", guid = "Player-1-0000CCCC", isPlayer = true,
+		enemy = false, faction = "Horde", class = 8, race = 8, level = 54, guild = "Hostile Takeover" }
+	T.ok(ns.Detect.Inspect("target"), "opposing faction in sanctuary is still an enemy")
+	SlashCmdList.BUSINESSMEETING("add sanctuary camping")
+	T.ok(store:IsListed("zulrakka-venomtongue"), "sanctuary enemy added")
+	world.units.target = nil
+
+	-- 8. A first-name-only entry sharing a guildmate's first name is not falsely blocked
+	SlashCmdList.BUSINESSMEETING("add Kari")
+	T.ok(store:IsListed("kari"), "first-name-only add does not collide with Kari-Frost")
+
+	-- 9. Live opposing-faction sighting overrides any stale ally cache entry
+	world.units.target = { name = "Soren", surname = "Brightblade", guid = "Player-1-00001111", isPlayer = true,
+		enemy = true, faction = "Horde", class = 2, race = 10, level = 60, guild = "Silver Hand" }
+	SlashCmdList.BUSINESSMEETING("add rerolled Horde")
+	T.ok(store:IsListed("soren-brightblade"), "live opposing sighting overrides stale ally cache")
+	world.units.target = nil
+
+	-- 10. Existing ally entry (e.g. from before seeing them) can still be removed
+	SlashCmdList.BUSINESSMEETING("add Later-Ally")
+	T.ok(store:IsListed("later-ally"))
+	world.units.mouseover = { name = "Later", surname = "Ally", guid = "Player-1-00001119", isPlayer = true,
+		faction = "Alliance", class = 3, race = 4, level = 60 }
+	world:Fire("UPDATE_MOUSEOVER_UNIT")
+	world.units.mouseover = nil
+	T.ok(ns:RemoveMine("r", "later-ally"), "removing a listed player still works after recognizing them as ally")
+	T.ok(not store:IsListed("later-ally"))
+
+	-- 11. Ally cache is per-faction: switching to a Horde character allows Alliance players and blocks Horde allies
+	local saved = BusinessMeetingDB
+	local worldH = Stub.Install()
+	worldH.myFaction = "Horde"
+	worldH.guild = "Blood and Thunder"
+	worldH.me = { first = "Thrallor", surname = "Wolfheart" }
+	worldH.roster = { { "Thrallor-Wolfheart", 0 }, { "Rokhan-Shadow", 3 } }
+	BusinessMeetingDB = saved
+	local nsH = worldH:LoadAddon(T.root)
+	worldH:Fire("ADDON_LOADED", "BusinessMeeting")
+	worldH:Fire("PLAYER_LOGIN")
+	worldH:Advance(3)
+	noErrors(worldH)
+	SlashCmdList.BUSINESSMEETING("add Eirik-Healer alliance healer")
+	T.ok(nsH.session.store:IsListed("eirik-healer"), "Alliance ally from Alliance alt is allowed on a Horde character")
+	SlashCmdList.BUSINESSMEETING("add Rokhan-Shadow")
+	T.ok(not nsH.session.store:IsListed("rokhan-shadow"), "Horde guildmate refused on a Horde character")
+	worldH.units.target = { name = "Grom", surname = "Ally", guid = "Player-1-00002222", isPlayer = true,
+		enemy = true, faction = "Horde", class = 1, race = 2, level = 60 }
+	T.eq(nsH.Detect.Inspect("target"), nil, "Horde duel ally refused on Horde character")
+	worldH.units.target = { name = "Jaina", surname = "Proud", guid = "Player-1-00002223", isPlayer = true,
+		enemy = false, faction = "Alliance", class = 8, race = 1, level = 60 }
+	T.ok(nsH.Detect.Inspect("target"), "Alliance player recognized as enemy on Horde character")
+
+	noErrors(world)
+	noErrors(worldH)
+	BusinessMeetingDB = keep
+end)
+
+T.test("game: battleground kills (OW/BG/Total), match history, targets, flag carriers & timers", function()
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	noErrors(world)
+
+	-- Put Grimtusk on the hit list so BG Targets tags him with a skull
+	SlashCmdList.BUSINESSMEETING("add Grimtusk-Bloodaxe BG rival")
+	-- Land 1 open-world kill first so we can verify OW + BG = Total
+	world.units.target = GRIMTUSK
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000AAAA")
+	world.units.target = nil
+	T.eq(ns.Progress:Stats().kills, 1, "1 open-world kill")
+
+	-- Enter Darkspear Islands battleground
+	world.instance = "pvp"
+	world.instanceName = "Darkspear Islands"
+	world.bgRunTimeMs = 420000
+	world:Fire("PLAYER_ENTERING_WORLD")
+	T.ok(ns.Battleground.active, "BG detected")
+	T.eq(ns.Battleground.mapKey, "ds", "Darkspear Islands identified")
+
+	-- Scoreboard arrives: 2 KB, 1 Death for Olaf, plus Horde enemies
+	world.bgScores = {
+		{ name = "Olaf-Stormborn", guid = "Player-1-00000001", faction = 1, classToken = "WARRIOR",
+			killingBlows = 2, deaths = 1, honorableKills = 8, damageDone = 45000, healingDone = 0, honorGained = 620 },
+		{ name = "Kari-Frost", guid = "Player-1-00000002", faction = 1, classToken = "ROGUE",
+			killingBlows = 1, deaths = 0, honorableKills = 6, damageDone = 32000, healingDone = 0, honorGained = 500 },
+		{ name = "Grimtusk-Bloodaxe", guid = "Player-1-0000AAAA", faction = 0, classToken = "ROGUE",
+			killingBlows = 4, deaths = 2, honorableKills = 10, damageDone = 51000, healingDone = 0, honorGained = 410 },
+		{ name = "Vexara-Nightfall", guid = "Player-1-0000DDDD", faction = 0, classToken = "MAGE",
+			killingBlows = 3, deaths = 1, honorableKills = 9, damageDone = 60000, healingDone = 0, honorGained = 390 },
+	}
+	world:Fire("UPDATE_BATTLEFIELD_SCORE")
+	noErrors(world)
+	local st = ns.Progress:Stats()
+	T.eq(st.kills, 1, "open-world kills unchanged")
+	T.eq(st.bgKills, 2, "BG kills counted from scoreboard")
+	T.eq(st.bgDeaths, 1, "BG deaths counted from scoreboard")
+	T.eq(ns.Progress.TotalKills(st), 3, "total kills = OW + BG")
+
+	-- BG Targets shows enemies, click-to-target macro, and Hit List skull on Grimtusk
+	T.ok(BusinessMeetingBGTargetsFrame and BusinessMeetingBGTargetsFrame:IsShown(), "BG Targets shown")
+	T.eq(#ns.Battleground.enemies, 2)
+	local foundSkull, foundMacro = false, false
+	for i = 1, 2 do
+		local row = BusinessMeetingBGTargetsFrame.rows[i]
+		if row:GetAttribute("macrotext1") == "/targetexact Grimtusk Bloodaxe" then
+			foundMacro = true
+			if row.tag:GetText():find("Media\\skull", 1, true) then foundSkull = true end
+		end
+	end
+	T.ok(foundMacro, "secure macro targets Grimtusk")
+	T.ok(foundSkull, "Hit List enemy marked with skull in BG Targets")
+
+	-- Flag carrier event & combat-lockdown safety (no SetAttribute errors during combat!)
+	world.inCombat = true
+	world:Fire("CHAT_MSG_BG_SYSTEM_HORDE", "Grimtusk-Bloodaxe has taken the flag!")
+	noErrors(world)
+	T.ok(ns.BGTargets.dirtySecure, "secure update queued while in combat")
+	world.inCombat = false
+	world:Fire("PLAYER_REGEN_ENABLED")
+	noErrors(world)
+	T.ok(not ns.BGTargets.dirtySecure, "secure update flushed on combat end")
+	T.ok(BusinessMeetingBGTargetsFrame.efc:IsShown(), "enemy flag carrier row shown")
+	T.eq(BusinessMeetingBGTargetsFrame.efc:GetAttribute("macrotext1"), "/targetexact Grimtusk Bloodaxe")
+
+	-- BG Timers: starting gate, base capture, flag drop/respawn, GY rez, score projection
+	world:Fire("CHAT_MSG_BG_SYSTEM_NEUTRAL", "The battle for Darkspear Islands begins in 1 minute.")
+	world:Fire("CHAT_MSG_BG_SYSTEM_HORDE", "Vexara-Nightfall has assaulted the Abandoned Tower!")
+	world.spiritHealerTime = 18
+	world:Advance(1.2)
+	noErrors(world)
+	T.ok(BusinessMeetingBGTimersFrame and BusinessMeetingBGTimersFrame:IsShown(), "BG Timers shown")
+	T.eq(#ns.BGTimers:List(), 3, "gate + base capture + rez wave")
+	world:Fire("CHAT_MSG_BG_SYSTEM_ALLIANCE", "Olaf-Stormborn has defended the Abandoned Tower!")
+	T.eq(#ns.BGTimers:List(), 2, "defended base timer cleared")
+	world:Fire("CHAT_MSG_BG_SYSTEM_NEUTRAL", "The flag has been dropped!")
+	world:Fire("CHAT_MSG_BG_SYSTEM_ALLIANCE", "Olaf-Stormborn has captured the flag!")
+	T.ok(ns.BGTimers.bars["flag:respawn"], "flag respawn timer started")
+
+	-- Score pace & projection (Alliance ahead -> Alliance wins ETA)
+	world.widgetsData[1] = { { widgetID = 10 }, { widgetID = 11 } }
+	world.widgetsData["icon:10"] = { text = "Alliance Bases: 3  Resources: 1000/2000" }
+	world.widgetsData["icon:11"] = { text = "Horde Bases: 1  Resources: 800/2000" }
+	ns.BGTimers:PollScore()
+	world:Advance(5)
+	world.widgetsData["icon:10"] = { text = "Alliance Bases: 3  Resources: 1150/2000" }
+	world.widgetsData["icon:11"] = { text = "Horde Bases: 1  Resources: 840/2000" }
+	ns.BGTimers:PollScore()
+	T.ok(ns.BGTimers.projection and ns.BGTimers.projection.winner == "Alliance", "score pace projects Alliance win")
+	T.ok(BusinessMeetingBGTimersFrame.proj:IsShown(), "projection displayed")
+
+	-- Simulate /reload mid-BG: kills must NOT double-count!
+	local saved = BusinessMeetingDB
+	local world2 = Stub.Install()
+	world2.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
+	world2.instance = "pvp"
+	world2.instanceName = "Darkspear Islands"
+	world2.bgRunTimeMs = 600000
+	world2.bgScores = world.bgScores
+	BusinessMeetingDB = saved
+	local ns2 = world2:LoadAddon(T.root)
+	world2:Fire("ADDON_LOADED", "BusinessMeeting")
+	world2:Fire("PLAYER_LOGIN")
+	world2:Advance(2)
+	world2:Fire("UPDATE_BATTLEFIELD_SCORE")
+	T.eq(ns2.Progress:Stats().bgKills, 2, "reload mid-BG does not double-count kills")
+	-- 8 more killing blows in the same BG (total 10 in one match -> medal 36!)
+	world2.bgScores[1].killingBlows = 10
+	world2.bgWinner = 1 -- Alliance wins
+	world2:Fire("UPDATE_BATTLEFIELD_SCORE")
+	noErrors(world2)
+	local st2 = ns2.Progress:Stats()
+	T.eq(st2.bgKills, 10, "new BG kills delta added")
+	T.eq(ns2.Progress.TotalKills(st2), 11, "1 OW + 10 BG = 11 total -> Associate rank!")
+	T.eq(ns2.Progress:MyRank().title, "Associate", "BG kills count toward guild rank")
+	T.ok(st2.earned[32], "Battleground Regular medal earned")
+	T.ok(st2.earned[36], "Dominating Performance medal (10+ KB) earned")
+	T.eq(st2.dsWins, 1, "Darkspear Islands win counted")
+
+	-- Match saved to History and Scoreboard dialog opens cleanly
+	local bgs = ns2.History:BGList()
+	T.eq(#bgs, 1, "completed BG saved")
+	T.eq(bgs[1].map, "Darkspear Islands")
+	T.eq(bgs[1].win, true)
+	T.eq(#bgs[1].roster, 4, "full scoreboard snapshot saved")
+	ns2.MainFrame:Show("h")
+	world2:Advance(1)
+	T.eq(#ns2.MainFrame.items, 1)
+	ns2.MainFrame.selected = bgs[1].key
+	ns2.MainFrame:UpdateActions()
+	ns2.MainFrame.frame.removeAll:Click() -- opens MatchDialog
+	T.ok(BusinessMeetingMatchDialog and BusinessMeetingMatchDialog:IsShown(), "scoreboard dialog opened")
+	BusinessMeetingMatchDialog:Hide()
+
+	-- Trigger a timer in world2 and verify leaving BG clears & hides both BG HUDs
+	world2:Fire("CHAT_MSG_BG_SYSTEM_HORDE", "Vexara-Nightfall has assaulted the Ruins!")
+	T.ok(BusinessMeetingBGTimersFrame:IsShown(), "BG Timers shown in world2")
+	world2.instance = nil
+	world2.instanceName = nil
+	world2:Fire("PLAYER_ENTERING_WORLD")
+	T.ok(not ns2.Battleground.active)
+	T.ok(not BusinessMeetingBGTargetsFrame:IsShown(), "BG Targets hidden outside BG")
+	T.ok(not BusinessMeetingBGTimersFrame:IsShown(), "BG Timers hidden outside BG")
+	noErrors(world2)
+	BusinessMeetingDB = keep
+end)
+
+T.test("game: duels, hybrid cooldown tracker, war ledger wishlist, hotspots & audit fixes", function()
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 }, { "Kari-Frost", 5 } }
+	world.spells[11958] = "Ice Block"
+	world.spells[1856] = "Vanish"
+	world.currencies = {
+		{ name = "Honor Points", quantity = 24000, maxQuantity = 25000 },
+		{ name = "Darkspear Islands Mark of Honor", quantity = 29, maxQuantity = 30 },
+		{ name = "PvP Legacy Points", quantity = 450, maxQuantity = 0 },
+	}
+	world.bags = { [20558] = 12, [20559] = 5 } -- WSG & AB marks
+	world.reputations = {
+		{ name = "Silverwing Sentinels", reaction = 6, currentReactionThreshold = 9000, nextReactionThreshold = 21000,
+			currentStanding = 15000 },
+		{ name = "Theramore Expeditionary Force", reaction = 5, currentReactionThreshold = 3000, nextReactionThreshold = 9000,
+			currentStanding = 5500 },
+		{ name = "Stormwind", reaction = 7, currentReactionThreshold = 21000, nextReactionThreshold = 42000,
+			currentStanding = 25000 },
+	}
+	world.pvpStats.highestRank = 7
+	world.merchant = {
+		{ itemID = 90001, name = "Marshal's Warblade", link = "|cffa335ee[Marshal's Warblade]|r", price = 50000,
+			costs = {
+				{ name = "Honor Points", value = 25000 },
+				{ name = "Warsong Gulch Mark of Honor", value = 20 },
+				{ name = "Darkspear Islands Mark of Honor", value = 10 },
+			} },
+		{ itemID = 90002, name = "Refreshing Spring Water", link = "[Refreshing Spring Water]", price = 50, costs = {} },
+	}
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(3)
+	noErrors(world)
+
+	-- 1. Duels + Hybrid Enemy Cooldown Tracker
+	local MAGE = { name = "Mageson", surname = "Frost", guid = "Player-1-00007777", isPlayer = true,
+		faction = "Alliance", class = 8, race = 1, level = 60 }
+	world.units.target = MAGE
+	world:Fire("DUEL_REQUESTED", "Mageson-Frost")
+	noErrors(world)
+	T.ok(BusinessMeetingCooldownsFrame and BusinessMeetingCooldownsFrame:IsShown(), "cooldown tracker opens on duel")
+	T.ok(BusinessMeetingCooldownsFrame.title:GetText():find("DUEL", 1, true))
+	-- Auto-trigger Ice Block (slot 5) via readable UNIT_SPELLCAST_SUCCEEDED
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "Cast-1", 11958)
+	local rem = ns.Cooldowns:Remaining(5)
+	T.ok(rem > 290 and rem <= 300, "Ice Block auto-tracked (300s)")
+	-- Secret spellID is safely ignored; manual keybind triggers Trinket (slot 1)
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "Cast-2", Stub.SECRET)
+	_G.BusinessMeeting_CooldownSlot(1)
+	T.ok(ns.Cooldowns:Remaining(1) > 290, "Trinket triggered via keybind")
+	-- Right-click resets slot 1
+	BusinessMeetingCooldownsFrame.slots[1]:Click("RightButton")
+	T.eq(ns.Cooldowns:Remaining(1), 0, "right-click resets cooldown slot")
+
+	-- Duel win recorded in History & Progress + medal 40
+	world:Fire("CHAT_MSG_SYSTEM", "Olaf-Stormborn has defeated Mageson-Frost in a duel")
+	world:Advance(1)
+	noErrors(world)
+	T.eq(ns.Progress:Stats().duelWins, 1)
+	T.ok(ns.Progress:Stats().earned[40], "Honor Bound duel medal earned")
+	T.eq(#ns.History:DuelList(), 1)
+	T.ok(not BusinessMeetingCooldownsFrame:IsShown(), "cooldown tracker hides when duel ends")
+
+	-- Open-world PvP enemy auto-shows cooldown tracker for Rogue and auto-tracks Vanish
+	world.units.target = GRIMTUSK
+	world:Fire("PLAYER_TARGET_CHANGED")
+	T.ok(BusinessMeetingCooldownsFrame:IsShown(), "cooldown tracker opens on open-world enemy target")
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "Cast-3", 1856)
+	T.ok(ns.Cooldowns:Remaining(6) > 290, "Vanish auto-tracked for open-world Rogue")
+	world.units.target = nil
+	world:Fire("PLAYER_TARGET_CHANGED")
+
+	-- 2. War Ledger: currencies, marks, BG reps, cap warnings, vendor catalog & wishlist
+	local chatFrom = #world.chat + 1
+	world:Fire("CURRENCY_DISPLAY_UPDATE")
+	T.ok(chatHas(world, "Honor cap warning:", chatFrom), "Honor cap warning printed at 96%")
+	T.ok(chatHas(world, "Mark cap warning:", chatFrom), "Darkspear Mark cap warning printed at 29/30")
+	local snap = ns.Ledger:Snapshot()
+	T.eq(snap.honor, 24000)
+	T.eq(snap.rank, 7)
+	T.eq(snap.legacyPoints, 450)
+	T.eq(snap.marks.wsg.count, 12)
+	T.eq(snap.marks.ds.count, 29)
+	T.eq(#snap.reps, 2, "only BG factions shown (not Stormwind)")
+
+	-- Seed one BG match so Wishlist can estimate remaining BGs
+	ns.History:RecordBG({ map = "Warsong Gulch", mapKey = "wsg", win = true, dur = 600, kb = 3, d = 1, honor = 500 })
+	world:Fire("MERCHANT_SHOW")
+	local catalog = ns.Ledger:CatalogList()
+	T.eq(#catalog, 1, "only PvP item cataloged from merchant")
+	T.eq(catalog[1].id, 90001)
+	ns.Ledger:ToggleWish(90001)
+	local ws = ns.Ledger:WishlistSummary()
+	T.eq(ws.count, 1)
+	T.eq(ws.needHonor, 1000, "25000 - 24000 = 1000 honor needed")
+	T.eq(ws.needMarks.wsg, 8, "20 - 12 = 8 WSG marks needed")
+	T.eq(ws.needMarks.ds, 0, "10 <= 29 -> 0 Darkspear marks needed")
+	T.eq(ws.estBGs, 2, "1000 / 500 avg honor = ~2 BGs")
+
+	-- Ledger tab renders both Overview and Wishlist views cleanly
+	ns.MainFrame:Show("l")
+	world:Advance(1)
+	T.ok(#ns.MainFrame.items >= 7, "overview rows rendered")
+	ns.MainFrame.frame.edit:Click() -- switch to Wishlist
+	T.eq(#ns.MainFrame.items, 1, "wishlist catalog rendered")
+
+	-- 3. World PvP Hotspots from sightings & kills
+	SlashCmdList.BUSINESSMEETING("add Grimtusk-Bloodaxe STV")
+	world.units.target = GRIMTUSK
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("PARTY_KILL", "Player-1-00000001", "Player-1-0000AAAA")
+	local spots = ns.Hotspots:List()
+	T.eq(#spots, 1)
+	T.eq(spots[1].zone, "Stranglethorn Vale")
+	T.ok(spots[1].kills >= 1 and spots[1].sightings >= 1)
+	SlashCmdList.BUSINESSMEETING("hotspots")
+	world:Advance(1)
+	T.eq(ns.MainFrame.historyMode, "hotspots")
+	T.eq(#ns.MainFrame.items, 1)
+
+	-- 4. Audit fixes: secret UI_INFO_MESSAGE never raises; leaving a guild clears stale facts.guild
+	world:Fire("UI_INFO_MESSAGE", Stub.SECRET, Stub.SECRET)
+	world.units.target = { name = "Grimtusk", surname = "Bloodaxe", guid = "Player-1-0000AAAA", isPlayer = true,
+		enemy = true, faction = "Horde", class = 4, race = 2, level = 60, guild = nil }
+	world:Fire("PLAYER_TARGET_CHANGED")
+	T.eq(ns.session.store:Player("grimtusk-bloodaxe").facts.guild, nil, "stale guild cleared when enemy leaves guild")
+
+	-- Slash command smoke checks
+	for _, cmd in ipairs({ "bgtargets test", "bgtargets test", "bgtimers test", "bgtimers test",
+		"cd test", "cd reset", "cd test", "ledger", "history", "set hudFade on", "set hudFade off" }) do
+		SlashCmdList.BUSINESSMEETING(cmd)
+	end
+	noErrors(world)
+	BusinessMeetingDB = keep
+end)
+
+T.test("game: edge cases (widget faction split, Darkspear POI/chat, Trinket alias, bag marks, double-click)", function()
+	local keep = BusinessMeetingDB
+	BusinessMeetingDB = nil
+	local world = Stub.Install()
+	world.roster = { { "Olaf-Stormborn", 3 } }
+	-- PvP Trinket alias where client returns a different spell name ("Insignia of the Horde")
+	world.spells[23274] = "Insignia of the Horde"
+	-- Darkspear Mark present only as a bag item (no hardcoded itemID, not in C_CurrencyInfo)
+	world.containerItems = {
+		{ stackCount = 14, itemName = "Darkspear Islands Mark of Honor", hyperlink = "[Darkspear Islands Mark of Honor]" },
+	}
+	world.money = 200000 -- 20g
+	world.merchant = {
+		{ itemID = 91001, name = "Grand Marshal's Longsword", link = "[Grand Marshal's Longsword]", price = 500000, -- 50g
+			costs = { { name = "Honor Points", value = 5000 }, { name = "Darkspear Islands Mark of Honor", value = 20 } } },
+	}
+	world.instance = "pvp"
+	world.instanceName = "Darkspear Islands"
+	world.bgScores = {
+		{ name = "Olaf-Stormborn", guid = "Player-1-00000001", faction = 1, classToken = "WARRIOR",
+			killingBlows = 3, deaths = 1, honorableKills = 8, damageDone = 15000, healingDone = 0, honorGained = 400 },
+		{ name = "Grimtusk-Bloodaxe", guid = "Player-1-0000AAAA", faction = 0, classToken = "ROGUE",
+			killingBlows = 1, deaths = 2, honorableKills = 4, damageDone = 9000, healingDone = 0, honorGained = 200 },
+	}
+	-- DoubleStatusBar sets aScore/hScore first, then Alliance icon widget arrives: must NOT overwrite Horde!
+	world.widgetsData[1] = { { widgetID = 1 }, { widgetID = 10 }, { widgetID = 11 } }
+	world.widgetsData["bar:1"] = { leftBarValue = 500, rightBarValue = 300, leftBarMax = 2000 }
+	world.widgetsData["icon:10"] = { text = "Alliance Bases: 3  500/2000" }
+	world.widgetsData["icon:11"] = { text = "Horde Bases: 1  300/2000" }
+	local ns = world:LoadAddon(T.root)
+	world:Fire("ADDON_LOADED", "BusinessMeeting")
+	world:Fire("PLAYER_LOGIN")
+	world:Advance(2)
+	world:Fire("UPDATE_BATTLEFIELD_SCORE")
+
+	-- Base capture without "the" ("claims Shipwreck Cove!") and POI contested fallback
+	world:Fire("CHAT_MSG_BG_SYSTEM_HORDE", "Grimtusk-Bloodaxe claims Shipwreck Cove!")
+	T.ok(ns.BGTimers.bars["base:shipwreck cove"], "Darkspear base without 'the' matched")
+	world.pois[501] = { name = "Abandoned Tower", description = "In Conflict - Alliance" }
+	ns.BGTimers:PollPOI()
+	T.ok(ns.BGTimers.bars["base:abandoned tower"], "contested POI starts capture bar")
+	world.pois[501] = { name = "Abandoned Tower", description = "Controlled by Alliance" }
+	ns.BGTimers:PollPOI()
+	T.eq(ns.BGTimers.bars["base:abandoned tower"], nil, "controlled POI clears capture bar")
+
+	-- Score projection keeps Alliance and Horde separated when both bar and icon widgets exist
+	ns.BGTimers:PollScore()
+	world:Advance(5)
+	world.widgetsData["bar:1"] = { leftBarValue = 560, rightBarValue = 320, leftBarMax = 2000 }
+	world.widgetsData["icon:10"] = { text = "Alliance Bases: 3  560/2000" }
+	world.widgetsData["icon:11"] = { text = "Horde Bases: 1  320/2000" }
+	ns.BGTimers:PollScore()
+	T.eq(ns.BGTimers.projection.aScore, 560)
+	T.eq(ns.BGTimers.projection.hScore, 320)
+	T.eq(ns.BGTimers.projection.aBases, 3)
+	T.eq(ns.BGTimers.projection.hBases, 1)
+	T.eq(ns.BGTimers.projection.winner, "Alliance")
+
+	-- Leaving BG with winner already set saves match + final scoreline
+	world.bgWinner = 1
+	world.instance = nil
+	world.instanceName = nil
+	world:Fire("PLAYER_ENTERING_WORLD")
+	local bgs = ns.History:BGList()
+	T.eq(#bgs, 1, "match saved on zone-out when winner is known")
+	T.eq(bgs[1].score, "560–320", "final scoreline recorded")
+
+	-- Double-clicking a BG row opens MatchDialog
+	ns.MainFrame:Show("h")
+	world:Advance(1)
+	ns.MainFrame.frame.rows[1]:DoubleClick()
+	T.ok(BusinessMeetingMatchDialog and BusinessMeetingMatchDialog:IsShown(), "double-click opens saved scoreboard")
+	BusinessMeetingMatchDialog:Hide()
+
+	-- /bm hotspots switches immediately even when History tab is already open
+	ns.Hotspots:Record("sighting", 1434, 450, 620, "Grimtusk-Bloodaxe")
+	SlashCmdList.BUSINESSMEETING("hotspots")
+	T.eq(ns.MainFrame.historyMode, "hotspots")
+	T.eq(#ns.MainFrame.items, 1, "hotspots refreshed immediately while History tab already open")
+
+	-- Bag-scanned Darkspear Marks + gold calculation in Wishlist + double-click toggle
+	local snap = ns.Ledger:Snapshot()
+	T.eq(snap.marks.ds.count, 14, "Darkspear Mark counted via bag scan")
+	world:Fire("MERCHANT_SHOW")
+	ns.MainFrame:Show("l")
+	ns.MainFrame.frame.edit:Click() -- Wishlist mode
+	T.eq(#ns.MainFrame.items, 1)
+	ns.MainFrame.frame.rows[1]:DoubleClick() -- toggle wish ON
+	T.ok(ns.Ledger:IsWished(91001), "double-click toggles wishlist on")
+	local ws = ns.Ledger:WishlistSummary()
+	T.eq(ws.needMarks.ds, 6, "20 - 14 bag marks = 6 needed")
+	T.eq(ws.needGold, 30, "50g - 20g = 30g needed")
+
+	-- Cooldown Tracker: PvP Trinket alias ("Insignia of the Horde") triggers slot 1 + ready flash on expiry
+	world.units.target = GRIMTUSK
+	world:Fire("PLAYER_TARGET_CHANGED")
+	world:Fire("UNIT_SPELLCAST_SUCCEEDED", "target", "Cast-Trinket", 23274)
+	T.ok(ns.Cooldowns:Remaining(1) > 290, "Insignia of the Horde alias triggers PvP Trinket slot 1")
+	-- Simulate cooldown expiring -> gold ready flash activates
+	ns.Cooldowns.timers["grimtusk-bloodaxe"][1].endsAt = world.now - 0.1
+	world:Advance(0.3)
+	T.ok((BusinessMeetingCooldownsFrame.slots[1].flashUntil or 0) > world.now, "gold ready-flash triggered on expiry")
+
+	noErrors(world)
 	BusinessMeetingDB = keep
 end)

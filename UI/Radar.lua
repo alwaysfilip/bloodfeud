@@ -137,6 +137,13 @@ function RadarUI:PaintRow(row)
 	end
 end
 
+function RadarUI:ApplyAlpha()
+	local f = self.frame
+	if not f then return end
+	local fade = ns.settings.hudFade and not self.hover
+	f:SetAlpha(fade and 0.68 or 1)
+end
+
 function RadarUI:Build()
 	local f = W.Panel(UIParent, "BusinessMeetingRadarFrame")
 	self.frame = f
@@ -145,6 +152,14 @@ function RadarUI:Build()
 	f:SetFrameStrata("MEDIUM")
 	W.Movable(f)
 	f:Hide()
+	f:SetScript("OnEnter", function()
+		RadarUI.hover = true
+		RadarUI:ApplyAlpha()
+	end)
+	f:SetScript("OnLeave", function()
+		RadarUI.hover = false
+		RadarUI:ApplyAlpha()
+	end)
 
 	local icon = f:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(14, 14)
@@ -184,6 +199,7 @@ function RadarUI:Update()
 	end
 	if not self.frame then self:Build() end
 	self.frame:Show()
+	self:ApplyAlpha()
 	self:Render()
 end
 

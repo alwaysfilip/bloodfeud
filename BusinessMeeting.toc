@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Business Meeting - PvP
-## Notes: Here on business. World PvP for your guild: a shared Kill on Sight hit list, radar, contracts paid in gold, ranks and medals.
+## Notes: Here on business. World PvP, battlegrounds and duels for your guild in Forever: Kill on Sight hit list, radar, contracts, BG targets & timers, enemy cooldowns, history, War Ledger, ranks and medals.
 ## OptionalDeps: BloodFeud
 ## Author: alwaysfilip
 ## Version: @project-version@
@@ -38,6 +38,13 @@ Core\Actions.lua
 Core\Feuds.lua
 Core\Achievements.lua
 Core\Progress.lua
+Core\History.lua
+Core\Battleground.lua
+Core\BGTimers.lua
+Core\Duels.lua
+Core\Cooldowns.lua
+Core\Ledger.lua
+Core\Hotspots.lua
 Core\Bounties.lua
 Core\Debts.lua
 Core\Users.lua
@@ -52,7 +59,11 @@ UI\AddDialog.lua
 UI\Revenge.lua
 UI\BountyDialog.lua
 UI\RanksDialog.lua
+UI\MatchDialog.lua
 UI\Radar.lua
+UI\BGTargets.lua
+UI\BGTimers.lua
+UI\Cooldowns.lua
 UI\Tooltip.lua
 UI\UnitMenu.lua
 UI\Nameplates.lua

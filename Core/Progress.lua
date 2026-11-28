@@ -69,7 +69,21 @@ end
 ---------------------------------------------------------------------------
 
 local COUNTERS = { "kills", "deaths", "streak", "best", "points", "claims", "posted", "added", "sightings",
-	"revengeAdds", "listedKills", "guildListedKills", "payback", "karma", "giant", "night" }
+	"revengeAdds", "listedKills", "guildListedKills", "payback", "karma", "giant", "night",
+	"bgKills", "bgDeaths", "bgWins", "bgLosses", "bgBestKB", "wsgWins", "abWins", "avWins", "dsWins",
+	"duelWins", "duelLosses", "duelStreak", "duelBest" }
+
+--- Combined Open World + Battleground kills (used for guild rank progression).
+function Progress.TotalKills(t)
+	if not t then return 0 end
+	return (t.kills or 0) + (t.bgKills or 0)
+end
+
+--- Combined Open World + Battleground deaths.
+function Progress.TotalDeaths(t)
+	if not t then return 0 end
+	return (t.deaths or 0) + (t.bgDeaths or 0)
+end
 
 function Progress:Stats()
 	local me = Names.Me()
@@ -171,10 +185,14 @@ end
 
 --- What the member record should say right now.
 function Progress:Totals(st)
-	return { kills = st.kills, deaths = st.deaths, best = st.best, points = st.points, ach = self:Bits(st) }
+	return {
+		kills = st.kills, deaths = st.deaths, best = st.best, points = st.points, ach = self:Bits(st),
+		bgKills = st.bgKills or 0, bgDeaths = st.bgDeaths or 0,
+		duelWins = st.duelWins or 0, duelLosses = st.duelLosses or 0,
+	}
 end
 
-local GROWING = { "kills", "deaths", "best", "points" }
+local GROWING = { "kills", "deaths", "best", "points", "bgKills", "bgDeaths", "duelWins", "duelLosses" }
 
 --- Take over whatever a record in my name knows that this computer does not:
 --- after a reinstall, or when I also play on another computer, the guild
@@ -184,7 +202,7 @@ function Progress:Absorb(st, rec)
 	local took = false
 	for i = 1, #GROWING do
 		local f = GROWING[i]
-		if rec[f] > st[f] then
+		if (rec[f] or 0) > (st[f] or 0) then
 			st[f] = rec[f]
 			took = true
 		end
@@ -225,7 +243,8 @@ function Progress:Publish()
 	if not s or not st or not self:Ready() then return nil end
 	self:Adopt(st)
 	local totals = self:Totals(st)
-	if not s.store:Member(s.meKey) and totals.kills + totals.deaths + totals.points + totals.ach == 0 then
+	if not s.store:Member(s.meKey) and totals.kills + totals.deaths + totals.points + totals.ach
+		+ totals.bgKills + totals.bgDeaths + totals.duelWins + totals.duelLosses == 0 then
 		return nil -- nothing to tell yet
 	end
 	return s.store:SetMember(s.me, totals, GetServerTime())
@@ -310,8 +329,57 @@ function Progress:OnKill(info, key, listed, e)
 
 	if ns.Bounties then ns.Bounties:OnKill(info, key, st) end
 	if ns.settings.dealBanner and ns.Alerts and ns.Alerts.Deal then
-		local tier, nextTier = Progress.RankFor(st.kills, Progress.Ladder(s and s.store))
+		local tier, nextTier = Progress.RankFor(Progress.TotalKills(st), Progress.Ladder(s and s.store))
 		ns.Alerts:Deal(info, st, nextTier, tier)
+	end
+	celebrate(self:Check(st))
+	self:Publish()
+	ns:Fire("PROGRESS_CHANGED")
+end
+
+--- New killing blows / deaths read from the battleground scoreboard.
+function Progress:OnBGDelta(dk, dd)
+	dk, dd = floor(dk or 0), floor(dd or 0)
+	if dk <= 0 and dd <= 0 then return end
+	local st = self:Stats()
+	if not st then return end
+	if dk > 0 then st.bgKills = st.bgKills + dk end
+	if dd > 0 then st.bgDeaths = st.bgDeaths + dd end
+	celebrate(self:Check(st))
+	self:Publish()
+	ns:Fire("PROGRESS_CHANGED")
+end
+
+local MAP_WIN_FIELD = { wsg = "wsgWins", ab = "abWins", av = "avWins", ds = "dsWins" }
+
+--- A completed battleground match.
+function Progress:OnBGComplete(match)
+	local st = self:Stats()
+	if not st or not match then return end
+	if match.win == true then
+		st.bgWins = st.bgWins + 1
+		local field = MAP_WIN_FIELD[match.mapKey]
+		if field then st[field] = st[field] + 1 end
+	elseif match.win == false then
+		st.bgLosses = st.bgLosses + 1
+	end
+	if (match.kb or 0) > (st.bgBestKB or 0) then st.bgBestKB = match.kb end
+	celebrate(self:Check(st))
+	self:Publish()
+	ns:Fire("PROGRESS_CHANGED")
+end
+
+--- A finished 1v1 duel.
+function Progress:OnDuel(won)
+	local st = self:Stats()
+	if not st then return end
+	if won then
+		st.duelWins = st.duelWins + 1
+		st.duelStreak = st.duelStreak + 1
+		if st.duelStreak > st.duelBest then st.duelBest = st.duelStreak end
+	else
+		st.duelLosses = st.duelLosses + 1
+		st.duelStreak = 0
 	end
 	celebrate(self:Check(st))
 	self:Publish()
@@ -356,14 +424,16 @@ local function announce(rec, old)
 		end
 	end
 	local ladder = Progress.Ladder(s.store)
-	local before, after = Progress.RankFor(old.kills, ladder), Progress.RankFor(rec.kills, ladder)
+	local before, after = Progress.RankFor(Progress.TotalKills(old), ladder),
+		Progress.RankFor(Progress.TotalKills(rec), ladder)
 	if after and (not before or after.kills > before.kills) then
 		ns:Print(L.RANK_UP:format(who, after.title))
 	end
 end
 
 --- Everyone the guild knows about, with rank: list of
---- { key, name, kills, deaths, best, points, ach, rank, me, dishonored }.
+--- { key, name, kills (total), owKills, bgKills, deaths (total), owDeaths, bgDeaths,
+---   duelWins, duelLosses, best, points, ach, rank, me, dishonored }.
 function Progress:Roll()
 	local s = ns.session
 	if not s then return {} end
@@ -371,9 +441,16 @@ function Progress:Roll()
 	local disgrace = s.store:Dishonor(GetServerTime())
 	local out = {}
 	local function add(key, name, t, ts, me)
+		local owKills, bgKills = t.kills or 0, t.bgKills or 0
+		local owDeaths, bgDeaths = t.deaths or 0, t.bgDeaths or 0
+		local totalKills = owKills + bgKills
+		local totalDeaths = owDeaths + bgDeaths
 		out[#out + 1] = {
-			key = key, name = name, kills = t.kills, deaths = t.deaths, best = t.best, points = t.points, ach = t.ach,
-			rank = Progress.RankFor(t.kills, ladder), me = me, ts = ts,
+			key = key, name = name, kills = totalKills, owKills = owKills, bgKills = bgKills,
+			deaths = totalDeaths, owDeaths = owDeaths, bgDeaths = bgDeaths,
+			duelWins = t.duelWins or 0, duelLosses = t.duelLosses or 0,
+			best = t.best or 0, points = t.points or 0, ach = t.ach or 0,
+			rank = Progress.RankFor(totalKills, ladder), me = me, ts = ts,
 			-- An unpaid bounty debt past its deadline: no rank and no bounty
 			-- points to show for as long as it stands.
 			dishonored = disgrace[key],
@@ -400,7 +477,7 @@ function Progress:MyRank()
 	local s = ns.session
 	local st = self:Stats()
 	if not st then return nil end
-	return Progress.RankFor(st.kills, Progress.Ladder(s and s.store))
+	return Progress.RankFor(Progress.TotalKills(st), Progress.Ladder(s and s.store))
 end
 
 ---------------------------------------------------------------------------

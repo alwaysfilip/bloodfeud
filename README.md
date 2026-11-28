@@ -1,14 +1,16 @@
 # Business Meeting - PvP
 
-World PvP for your guild in **World of Warcraft: Forever**. You are here on
-business: there is a hit list, there are contracts, and somebody keeps the
-books.
+World PvP, battlegrounds and duels for your guild in **World of Warcraft:
+Forever**. You are here on business: there is a hit list, there are contracts,
+and somebody keeps the books.
 
 One guild member marks an enemy player Kill on Sight. Everyone else in the
 guild who runs the addon gets the entry within seconds, and is alerted the
 moment they meet that player themselves. Around that shared hit list sit a
-radar, contracts (bounties) paid in points and gold, ranks, medals
-(achievements) and alerts for whoever targets you or goes into stealth.
+radar, contracts (bounties) paid in points and gold, battleground target &
+timer HUDs, an enemy cooldown tracker for duels and world PvP, saved BG/duel
+history, a War Ledger with vendor wishlist, world PvP hotspots, ranks, medals
+and alerts for whoever targets you or goes into stealth.
 
 Formerly called Blood Feud. Updating keeps your saved data.
 
@@ -46,12 +48,15 @@ What has to be understood in the middle of a fight is said plainly:
   a quieter alert.
 - **Sightings.** When someone meets a player from the hit list, the guild gets
   one line: who, where, and who saw them.
-- **Confirmed kills.** Your killing blows on enemy players and your deaths to
-  them are counted, with a banner for each kill you confirm. For a player on
-  the hit list, the list shows the whole guild's record.
+- **Confirmed kills (Open World, BG & Total).** Your open-world killing blows
+  and deaths are counted, and your killing blows and deaths in Forever's
+  battlegrounds (Warsong Gulch, Arathi Basin, Alterac Valley, Darkspear
+  Islands) are tracked from the live scoreboard without double counting across
+  `/reload`. Ranks and kill medals build on Total kills (OW + BG), while OW,
+  BG and Total are shown separately.
 - **Unfinished business.** When the same enemy kills you twice within 30
-  minutes, Business Meeting offers to put them on the hit list. Both numbers
-  can be changed in the options.
+  minutes in the open world, Business Meeting offers to put them on the hit
+  list. Both numbers can be changed in the options.
 - **Radar.** A small window listing the enemy players around you, Kill on
   Sight and players with a contract on them first. Each row is a class icon
   and a bar that drains as the sighting gets older, with icons for what is
@@ -65,10 +70,33 @@ What has to be understood in the middle of a fight is said plainly:
   Meeting notices the gold leave and arrive by itself. Whoever has not paid in
   time is **blacklisted**: no rank, no contract points and no new contracts
   until the gold is paid.
-- **Ranks.** Your confirmed kills earn you a rank, from Recruit to Boogeyman.
-  Officers can rename the ranks and move the thresholds for the whole guild.
-  Guildmates see each other's rank on the Ranks tab and in tooltips.
-- **Medals.** 31 of them, from First Blood to Bad Blood. Your guild is told
+- **Ranks.** Your confirmed kills (Open World + BG) earn you a rank, from
+  Recruit to Boogeyman. Officers can rename the ranks and move the thresholds
+  for the whole guild. Guildmates see each other's OW/BG/Total kills, duels
+  and rank on the Ranks tab and in tooltips.
+- **Battleground Targets & Flag Carrier HUD.** Click-to-target enemy list
+  (combat-safe `SecureActionButton`), dedicated Enemy / Friendly Flag Carrier
+  rows in WSG and Darkspear Islands, live health when visible, and Hit List /
+  Contract / Hostile Guild icons.
+- **Battleground Timers & Score Projection.** Countdown bars for starting
+  gates, base captures (AB, AV, Darkspear Islands), flag drop/respawn and the
+  30s Spirit Healer resurrection wave, plus projected win time and bases
+  needed in AB and Darkspear Islands.
+- **Enemy Cooldown Tracker.** Compact 6-slot bar filtered to your active
+  opponent's class + PvP Trinket, on by default in 1v1 duels and open-world
+  PvP (optional in BGs). Auto-starts when casts are readable, or trigger
+  manually by click / keybind (`Slot 1–6` and `Reset`), with a gold flash when
+  ready.
+- **History, Duels & Hotspots.** Saves up to 200 full BG scoreboards
+  (double-click to view) and 200 1v1 duels with winrates, honor/hour and
+  per-map / per-class / per-opponent records, plus a rolling 60-minute World
+  PvP Hotspots list from your guild's sightings, kills and radar.
+- **War Ledger & Vendor Wishlist.** Tracks Forever PvP Rank / Rank Points,
+  Honor vs. 25,000 cap, BG Marks vs. 30 cap (with cap warnings), PvP Legacy
+  Points and BG reputations. Auto-catalogs PvP vendors when opened so you can
+  wishlist items and see missing Honor, Marks, Gold and estimated BGs left.
+- **Medals.** 42 of them, covering open-world kills, streaks, contracts,
+  battlegrounds (WSG, AB, Darkspear Islands) and 1v1 duels. Your guild is told
   when you earn one, and can see which ones you have.
 - **Targeting you.** When an enemy player targets you or your pet, you are
   told who it is: class, level, race and guild, whether they are Kill on Sight
@@ -93,6 +121,12 @@ What has to be understood in the middle of a fight is said plainly:
 | `/bm guild Guild Name = intel` | List a hostile guild (officers) |
 | `/bm score [Firstname-Surname]` | Your kills and deaths, or the record against one enemy |
 | `/bm radar` | Show or hide the radar |
+| `/bm bgtargets [test]` | Toggle Battleground Targets HUD (or preview) |
+| `/bm bgtimers [test]` | Toggle Battleground Timers & score projection HUD (or preview) |
+| `/bm cd [test\|reset]` | Toggle Enemy Cooldown Tracker (or preview / reset timers) |
+| `/bm history` | Open saved BG scoreboards, duels and world PvP hotspots |
+| `/bm ledger` | Open War Ledger (Rank, Honor, BG Marks, reps & vendor wishlist) |
+| `/bm hotspots` | Show active world PvP zones from the last hour |
 | `/bm bounty [points] [50g] [terms]` | Open a contract on your target; `50g` puts 50 gold on it |
 | `/bm bounty Firstname-Surname [points] [50g] [terms]` | Open a contract on a player by name (with no enemy targeted) |
 | `/bm bounty <Guild Name> [points] [50g] [terms]` | Open a contract on a guild |
@@ -132,16 +166,18 @@ works within them rather than around them:
   is closed to addons, so detection comes from nameplates, target, focus and
   mouseover. Turn on enemy nameplates to get the most out of it. A rogue in
   stealth behind you is not detected.
-- **Nothing happens in dungeons, raids and battlegrounds.** Addon messages
-  are locked there. Changes you make inside are kept and sent when you come
-  out; changes others made are fetched then too.
+- **Guild sync pauses inside dungeons, raids and battlegrounds.** Addon
+  messages are locked there. Changes you make inside (including BG kills and
+  medals) are kept and synced automatically once you come out; changes others
+  made are fetched then too.
 - **It only syncs between members who are online at the same time.** There is
   no server. Whoever is online passes the list on to whoever logs in next.
-- **Kills and deaths are counted in the open world only.** The client tells
-  addons who landed a killing blow and, through the death recap, who killed
-  you. It does not do so inside instances, so nothing is counted there. A
-  kill only counts when it was your (or your pet's) killing blow. Ranks,
-  contracts and most medals build on those kills.
+- **How kills are counted.** In the open world, killing blows come from
+  `PARTY_KILL` and deaths from the death recap (your or your pet's killing blow
+  only). Inside battlegrounds, killing blows and deaths are read from the live
+  BG scoreboard (`C_PvP.GetScoreInfo`) and kept separate from open-world kills.
+  Contracts and per-enemy feuds still apply to open-world kills; guild ranks
+  and kill medals use Total kills (OW + BG).
 - **"Targeting you" only covers enemies the game shows you.** An addon can
   ask who an enemy has targeted only for enemies with a nameplate, your own
   target and your focus. Someone out of sight, or in stealth, is not noticed.

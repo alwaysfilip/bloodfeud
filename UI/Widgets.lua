@@ -390,6 +390,11 @@ function W.Button(parent, text, width, height, style)
 		paint()
 	end
 
+	function b:SetStyle(value)
+		self.style = value or "normal"
+		paint()
+	end
+
 	function b:SetLabel(value)
 		self.label:SetText(W.Caps(value))
 	end
